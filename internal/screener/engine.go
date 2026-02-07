@@ -142,10 +142,39 @@ func (e *Engine) Scan(symbols []string) []*ScreenResult {
 		}
 	}
 
+	// Add placeholders for watchlist symbols that weren't in scan results
+	e.addWatchlistPlaceholders()
+
 	// Sort results
 	e.sortResults()
 
 	return e.GetResults()
+}
+
+// addWatchlistPlaceholders adds placeholder results for watchlist symbols not in results
+func (e *Engine) addWatchlistPlaceholders() {
+	watchlistSymbols := e.watchlist.GetAll()
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	// Build set of existing symbols
+	existing := make(map[string]bool)
+	for _, r := range e.results {
+		existing[r.Symbol] = true
+	}
+
+	// Add placeholders for missing watchlist symbols
+	for _, symbol := range watchlistSymbols {
+		if !existing[symbol] {
+			placeholder := &ScreenResult{
+				Symbol:   symbol,
+				Name:     symbol,
+				IsPinned: true,
+			}
+			e.results = append(e.results, placeholder)
+		}
+	}
 }
 
 // passesFilter checks if a result meets the filter criteria
@@ -244,7 +273,30 @@ func (e *Engine) AddToWatchlist(symbol string) error {
 	if err := e.watchlist.Add(symbol); err != nil {
 		return err
 	}
-	e.RefreshWatchlist()
+
+	// Check if symbol already exists in results
+	e.mu.Lock()
+	found := false
+	for _, r := range e.results {
+		if r.Symbol == symbol {
+			r.IsPinned = true
+			found = true
+			break
+		}
+	}
+
+	// If not found, create placeholder result so it shows in watchlist view
+	if !found {
+		placeholder := &ScreenResult{
+			Symbol:   symbol,
+			Name:     symbol, // Will be updated on scan
+			IsPinned: true,
+		}
+		e.results = append(e.results, placeholder)
+	}
+	e.mu.Unlock()
+
+	e.sortResults()
 	return nil
 }
 
@@ -253,6 +305,25 @@ func (e *Engine) RemoveFromWatchlist(symbol string) error {
 	if err := e.watchlist.Remove(symbol); err != nil {
 		return err
 	}
-	e.RefreshWatchlist()
+
+	e.mu.Lock()
+	// Find the result and update IsPinned or remove if placeholder
+	newResults := make([]*ScreenResult, 0, len(e.results))
+	for _, r := range e.results {
+		if r.Symbol == symbol {
+			// Check if it's a placeholder (no price data)
+			if r.Price == 0 && r.RSI == 0 {
+				// Skip - remove placeholder
+				continue
+			}
+			// Has real data, just unpin
+			r.IsPinned = false
+		}
+		newResults = append(newResults, r)
+	}
+	e.results = newResults
+	e.mu.Unlock()
+
+	e.sortResults()
 	return nil
 }

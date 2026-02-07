@@ -152,19 +152,6 @@ func (s *Splash) View() string {
 	b.WriteString(centerText(version, s.width))
 	b.WriteString("\n\n")
 
-	// Loading dots animation
-	dots := ""
-	dotCount := s.frame % 4
-	for i := 0; i < dotCount; i++ {
-		dots += "●"
-	}
-	for i := dotCount; i < 3; i++ {
-		dots += "○"
-	}
-	loading := styles.SpinnerStyle.Render(dots)
-	b.WriteString(centerText(loading, s.width))
-	b.WriteString("\n\n")
-
 	// Press any key hint (show after a few frames)
 	if s.frame > 5 {
 		hint := styles.HelpStyle.Render("Press any key to continue...")

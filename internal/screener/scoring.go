@@ -24,6 +24,20 @@ type ScreenResult struct {
 	SMA20 float64
 	SMA50 float64
 
+	// MACD Indicators
+	MACD          float64
+	MACDSignal    float64
+	MACDHistogram float64
+	MACDCrossover string // "bullish", "bearish", "none"
+
+	// Bollinger Bands
+	BBUpper    float64
+	BBMiddle   float64
+	BBLower    float64
+	BBWidth    float64
+	BBPercentB float64
+	BBSqueeze  bool
+
 	// Valuation Metrics
 	PBV           float64
 	PERatio       float64
@@ -120,6 +134,26 @@ func CalculateMetrics(data *fetcher.StockData) *ScreenResult {
 	// Calculate Volatility
 	if len(data.HistoricalPrices) > 10 {
 		result.Volatility = analysis.Volatility(data.HistoricalPrices)
+	}
+
+	// Calculate MACD (12, 26, 9)
+	if len(data.HistoricalPrices) >= 35 {
+		macd := analysis.MACD(data.HistoricalPrices, 12, 26, 9)
+		result.MACD = macd.MACD
+		result.MACDSignal = macd.Signal
+		result.MACDHistogram = macd.Histogram
+		result.MACDCrossover = macd.Crossover
+	}
+
+	// Calculate Bollinger Bands (20, 2.0)
+	if len(data.HistoricalPrices) >= 20 {
+		bb := analysis.BollingerBands(data.HistoricalPrices, 20, 2.0)
+		result.BBUpper = bb.Upper
+		result.BBMiddle = bb.Middle
+		result.BBLower = bb.Lower
+		result.BBWidth = bb.Width
+		result.BBPercentB = bb.PercentB
+		result.BBSqueeze = bb.IsSqueeze
 	}
 
 	// Store historical prices for chart display

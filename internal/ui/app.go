@@ -5,6 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"stockmap/internal/alerts"
 	"stockmap/internal/fetcher"
 	"stockmap/internal/history"
 	"stockmap/internal/screener"
@@ -23,6 +24,7 @@ const (
 	ViewHistory
 	ViewConnection
 	ViewScanMode
+	ViewAlerts
 )
 
 // Model is the main bubbletea model
@@ -38,8 +40,10 @@ type Model struct {
 	historyView       *views.HistoryView
 	connectionView    *views.ConnectionView
 	scanModeView      *views.ScanModeView
+	alertsView        *views.AlertsView
 	engine            *screener.Engine
 	historyMgr        *history.Manager
+	alertsMgr         *alerts.Manager
 	scanning          bool
 	results           []*screener.ScreenResult
 	totalScanned      int
@@ -53,6 +57,8 @@ type Model struct {
 	autoReload        bool // Auto-reload enabled
 	autoReloadSeconds int  // Seconds between reloads (default 60)
 	autoReloadCounter int  // Current countdown
+	// Triggered alerts
+	triggeredAlerts []alerts.TriggeredAlert
 }
 
 // ScanProgressMsg is sent during scanning
@@ -103,8 +109,14 @@ type ReloadTickMsg struct{}
 // AutoReloadTickMsg triggers auto-reload countdown
 type AutoReloadTickMsg struct{}
 
+// AlertTriggeredMsg is sent when an alert is triggered
+type AlertTriggeredMsg struct {
+	Alert alerts.TriggeredAlert
+}
+
 // NewModel creates a new app model
 func NewModel() *Model {
+	alertsMgr := alerts.NewManager("")
 	return &Model{
 		currentView:       ViewSplash,
 		splash:            views.NewSplash(),
@@ -115,8 +127,10 @@ func NewModel() *Model {
 		historyView:       views.NewHistoryView(),
 		connectionView:    views.NewConnectionView(),
 		scanModeView:      views.NewScanModeView(),
+		alertsView:        views.NewAlertsView(alertsMgr),
 		engine:            screener.NewEngine(10), // 10 workers with rate limiting
 		historyMgr:        history.NewManager(),
+		alertsMgr:         alertsMgr,
 		autoReloadSeconds: 60, // Default 60 seconds
 	}
 }
@@ -244,6 +258,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.historyView.SetSize(msg.Width, msg.Height)
 		m.connectionView.SetSize(msg.Width, msg.Height)
 		m.scanModeView.SetSize(msg.Width, msg.Height)
+		m.alertsView.SetSize(msg.Width, msg.Height)
 		return m, nil
 
 	case tea.KeyMsg:
@@ -280,12 +295,24 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.dashboard.SetAutoReload(true, m.autoReloadCounter)
 
 			if m.autoReloadCounter <= 0 {
-				// Trigger reload
-				m.autoReloadCounter = m.autoReloadSeconds
-				m.isReload = true
-				m.scanning = true
-				m.dashboard.SetReloading(true)
-				return m, tea.Batch(m.startScan(), m.reloadTick(), m.autoReloadTick())
+				// Trigger reload - reload ALL symbols from current table results
+				if len(m.results) > 0 {
+					symbols := make([]string, 0, len(m.results))
+					for _, r := range m.results {
+						symbols = append(symbols, r.Symbol)
+					}
+					m.scanSymbols = symbols
+					m.autoReloadCounter = m.autoReloadSeconds
+					m.isReload = true
+					m.scanning = true
+					m.dashboard.SetReloading(true)
+					return m, tea.Batch(m.startScan(), m.reloadTick(), m.autoReloadTick())
+				}
+				// No results, disable auto-reload
+				m.autoReload = false
+				m.dashboard.SetAutoReload(false, 0)
+				m.dashboard.SetMessage("Auto-reload stopped: no data")
+				return m, nil
 			}
 			return m, m.autoReloadTick()
 		}
@@ -324,15 +351,30 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.loadedFromHistory = false
 			m.loadedHistoryID = ""
 
+			// Check alerts for each result
+			m.checkAlerts()
+
 			// Continue auto-reload timer if enabled
 			var cmds []tea.Cmd
-			cmds = append(cmds, m.saveHistory())
+
+			// Only save history for new scans, NOT for reload
+			if !m.isReload {
+				cmds = append(cmds, m.saveHistory())
+			} else {
+				m.dashboard.SetMessage("Reloaded")
+				m.isReload = false
+			}
+
 			if m.autoReload {
 				m.autoReloadCounter = m.autoReloadSeconds
 				m.dashboard.SetAutoReload(true, m.autoReloadCounter)
 				cmds = append(cmds, m.autoReloadTick())
 			}
-			return m, tea.Batch(cmds...)
+
+			if len(cmds) > 0 {
+				return m, tea.Batch(cmds...)
+			}
+			return m, nil
 		}
 
 		// Continue checking for progress
@@ -438,6 +480,8 @@ func (m *Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleConnectionKeys(msg)
 	case ViewScanMode:
 		return m.handleScanModeKeys(msg)
+	case ViewAlerts:
+		return m.handleAlertsKeys(msg)
 	}
 
 	return m, nil
@@ -490,17 +534,35 @@ func (m *Model) handleDashboardKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "r", "R":
-		// Reload/Refresh - rescan with same symbols (stay on dashboard with spinner)
-		if len(m.results) > 0 || len(m.scanSymbols) > 0 {
-			m.isReload = true // Mark as reload to update history instead of creating new
+		// Reload/Refresh - toggle: if scanning, cancel; if not, start reload
+		if m.scanning {
+			// Cancel current reload/scan
+			m.engine.Stop()
+			m.scanning = false
+			m.isReload = false
+			m.dashboard.SetReloading(false)
+			m.dashboard.SetScanning(false, "", 0)
+			m.dashboard.SetMessage("Reload cancelled")
+			return m, nil
+		}
+
+		// Start reload - reload ALL symbols from current table results
+		if len(m.results) > 0 {
+			// Extract symbols from current results in table
+			symbols := make([]string, 0, len(m.results))
+			for _, r := range m.results {
+				symbols = append(symbols, r.Symbol)
+			}
+			m.scanSymbols = symbols
+			m.isReload = true
 			m.scanning = true
 			m.dashboard.SetReloading(true)
 			m.dashboard.SetMessage("")
-			// Stay on dashboard, don't switch to ViewScanner
 			return m, tea.Batch(m.startScan(), m.reloadTick())
 		}
-		// No previous scan, show message
-		m.dashboard.SetMessage("No previous scan to reload. Press [S] to scan.")
+
+		// No results to reload, show message
+		m.dashboard.SetMessage("No data to reload. Press [S] to scan first.")
 		return m, nil
 
 	case "t", "T":
@@ -519,6 +581,12 @@ func (m *Model) handleDashboardKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		} else {
 			m.dashboard.SetMessage("Run a scan first before enabling auto-reload")
 		}
+		return m, nil
+
+	case "p", "P":
+		// Switch to alerts view
+		m.alertsView.Refresh()
+		m.currentView = ViewAlerts
 		return m, nil
 
 	case "up", "k":
@@ -817,6 +885,87 @@ func (m *Model) handleScanModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// handleAlertsKeys handles alerts-specific keys
+func (m *Model) handleAlertsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Handle input mode
+	if m.alertsView.IsInputActive() {
+		switch msg.String() {
+		case "esc":
+			m.alertsView.ClearInput()
+			return m, nil
+		case "enter":
+			// Get current price for the symbol
+			lastPrice := 0.0
+			if stock := m.findStock(m.alertsView.SelectedAlert().Symbol); stock != nil {
+				lastPrice = stock.Price
+			}
+			m.alertsView.SubmitAlert(lastPrice)
+			return m, nil
+		case "tab":
+			m.alertsView.NextInputField()
+			return m, nil
+		case "shift+tab":
+			m.alertsView.PrevInputField()
+			return m, nil
+		case " ":
+			m.alertsView.CycleAlertType()
+			return m, nil
+		case "backspace":
+			m.alertsView.Backspace()
+			return m, nil
+		default:
+			if len(msg.String()) == 1 {
+				m.alertsView.AddChar(rune(msg.String()[0]))
+			}
+			return m, nil
+		}
+	}
+
+	switch msg.String() {
+	case "n", "N":
+		// New alert
+		if selected := m.dashboard.SelectedResult(); selected != nil {
+			m.alertsView.SetCurrentStock(selected)
+		}
+		m.alertsView.ToggleInput()
+		return m, nil
+
+	case "d", "D":
+		// Delete selected alert
+		m.alertsView.DeleteSelected()
+		return m, nil
+
+	case "t", "T":
+		// Toggle active state
+		m.alertsView.ToggleSelected()
+		return m, nil
+
+	case "r", "R":
+		// Reset triggered alert
+		m.alertsView.ResetSelected()
+		return m, nil
+
+	case "c", "C":
+		// Clear triggered alerts
+		m.alertsView.ClearTriggered()
+		return m, nil
+
+	case "up", "k":
+		m.alertsView.MoveUp()
+		return m, nil
+
+	case "down", "j":
+		m.alertsView.MoveDown()
+		return m, nil
+
+	case "esc":
+		m.currentView = ViewDashboard
+		return m, nil
+	}
+
+	return m, nil
+}
+
 // findStock finds a stock by symbol in results
 func (m *Model) findStock(symbol string) *screener.ScreenResult {
 	for _, r := range m.results {
@@ -844,8 +993,28 @@ func (m *Model) View() string {
 		return m.connectionView.View()
 	case ViewScanMode:
 		return m.scanModeView.View()
+	case ViewAlerts:
+		return m.alertsView.View()
 	default:
 		return m.dashboard.View()
+	}
+}
+
+// checkAlerts checks all results against active alerts
+func (m *Model) checkAlerts() {
+	for _, result := range m.results {
+		triggered := m.alertsMgr.CheckPrice(result.Symbol, result.Price, result.RSI)
+		m.triggeredAlerts = append(m.triggeredAlerts, triggered...)
+	}
+
+	// Show notification if alerts were triggered
+	if len(m.triggeredAlerts) > 0 {
+		count := len(m.triggeredAlerts)
+		msg := "ALERT: 1 price alert triggered! Press [P] to view."
+		if count > 1 {
+			msg = "ALERT: Multiple price alerts triggered! Press [P] to view."
+		}
+		m.dashboard.SetMessage(msg)
 	}
 }
 

@@ -35,6 +35,15 @@ func (p *WorkerPool) SetProgressCallback(cb func(completed, total int)) {
 
 // Start begins processing symbols
 func (p *WorkerPool) Start(symbols []string) <-chan *StockData {
+	// Cancel any previous context and create new one
+	if p.cancel != nil {
+		p.cancel()
+	}
+	p.ctx, p.cancel = context.WithCancel(context.Background())
+
+	// Reset WaitGroup
+	p.wg = sync.WaitGroup{}
+
 	p.symbols = make(chan string, len(symbols))
 	p.results = make(chan *StockData, len(symbols))
 
@@ -94,7 +103,9 @@ func (p *WorkerPool) worker() {
 
 // Stop cancels all pending work
 func (p *WorkerPool) Stop() {
-	p.cancel()
+	if p.cancel != nil {
+		p.cancel()
+	}
 }
 
 // FetchAll fetches data for all symbols and returns when complete
