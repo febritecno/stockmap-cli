@@ -2,6 +2,7 @@ package fetcher
 
 import (
 	"context"
+	"os"
 	"sync"
 )
 
@@ -20,9 +21,11 @@ type WorkerPool struct {
 // NewWorkerPool creates a new worker pool
 func NewWorkerPool(workers int) *WorkerPool {
 	ctx, cancel := context.WithCancel(context.Background())
+	// Check for custom DNS env var
+	dns := os.Getenv("STOCKMAP_DNS")
 	return &WorkerPool{
 		workers: workers,
-		client:  NewDirectYahooClient(),
+		client:  NewDirectYahooClientWithDNS(dns),
 		ctx:     ctx,
 		cancel:  cancel,
 	}

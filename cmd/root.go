@@ -13,7 +13,8 @@ import (
 )
 
 var (
-	version = "1.0.2"
+	version   = "1.0.3"
+	dnsServer string
 )
 
 // rootCmd represents the base command
@@ -32,6 +33,10 @@ Features:
   • Interactive TUI with keyboard navigation
   • Watchlist management`,
 	Run: func(cmd *cobra.Command, args []string) {
+		// Pass DNS server to UI if set
+		if dnsServer != "" {
+			os.Setenv("STOCKMAP_DNS", dnsServer)
+		}
 		if err := ui.Run(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
@@ -55,6 +60,11 @@ var scanCmd = &cobra.Command{
 	Long:  "Run a stock scan and print results to stdout without launching the TUI.",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Starting stock scan...")
+
+		// Set DNS env for engine to pick up if needed
+		if dnsServer != "" {
+			os.Setenv("STOCKMAP_DNS", dnsServer)
+		}
 
 		symbols := fetcher.DefaultSymbols()
 		engine := screener.NewEngine(10)
@@ -93,9 +103,12 @@ var debugCmd = &cobra.Command{
 	Long:  "Test connectivity to Yahoo Finance API and report any errors.",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Running connection diagnostics...")
+		if dnsServer != "" {
+			fmt.Printf("Using custom DNS: %s\n", dnsServer)
+		}
 		fmt.Println("--------------------------------")
 
-		client := fetcher.NewDirectYahooClient()
+		client := fetcher.NewDirectYahooClientWithDNS(dnsServer)
 		defer client.Close()
 
 		result := client.CheckConnection()
@@ -115,6 +128,7 @@ var debugCmd = &cobra.Command{
 }
 
 func init() {
+	rootCmd.PersistentFlags().StringVar(&dnsServer, "dns", "", "Custom DNS server (e.g., 8.8.8.8)")
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(scanCmd)
 	rootCmd.AddCommand(debugCmd)

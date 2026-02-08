@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -21,9 +22,47 @@ type DirectYahooClient struct {
 
 // NewDirectYahooClient creates a new direct Yahoo client
 func NewDirectYahooClient() *DirectYahooClient {
+	return NewDirectYahooClientWithDNS("")
+}
+
+// NewDirectYahooClientWithDNS creates a new direct Yahoo client with custom DNS
+func NewDirectYahooClientWithDNS(dnsServer string) *DirectYahooClient {
+	transport := &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+
+	if dnsServer != "" {
+		// Use custom DNS resolver
+		resolver := &net.Resolver{
+			PreferGo: true,
+			Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+				d := net.Dialer{
+					Timeout: time.Millisecond * time.Duration(10000),
+				}
+				// Force DNS server port 53
+				return d.DialContext(ctx, "udp", dnsServer+":53")
+			},
+		}
+
+		transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			d := net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+				Resolver:  resolver,
+			}
+			return d.DialContext(ctx, network, addr)
+		}
+	}
+
 	return &DirectYahooClient{
 		httpClient: &http.Client{
-			Timeout: 15 * time.Second,
+			Transport: transport,
+			Timeout:   15 * time.Second,
 		},
 		rateLimiter: time.NewTicker(250 * time.Millisecond), // 4 requests per second max
 	}

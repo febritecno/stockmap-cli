@@ -446,10 +446,14 @@ If you encounter errors connecting to the Yahoo Finance API on Termux (e.g., cer
    ```
 
 3. **DNS Issues**:
-   If you see DNS resolution errors, try using the Go resolver:
+   If you see DNS resolution errors (e.g., `dial tcp: lookup ...: no such host`), try using the new `--dns` flag to force a working resolver (like Google DNS):
    ```bash
-   export GODEBUG=netdns=go
-   stockmap scan
+   stockmap scan --dns=8.8.8.8
+   ```
+   
+   Or use the `debug` command to test connectivity:
+   ```bash
+   stockmap debug --dns=8.8.8.8
    ```
 
 ## Contributing

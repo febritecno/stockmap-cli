@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"os"
 	"strconv"
 	"time"
 
@@ -183,7 +184,8 @@ func (m *Model) autoReloadTick() tea.Cmd {
 
 // checkMarketStatus fetches the market status
 func (m *Model) checkMarketStatus() tea.Msg {
-	client := fetcher.NewDirectYahooClient()
+	dns := os.Getenv("STOCKMAP_DNS")
+	client := fetcher.NewDirectYahooClientWithDNS(dns)
 	defer client.Close()
 	status := client.GetMarketStatus()
 	return MarketStatusMsg{Status: status}
@@ -192,7 +194,8 @@ func (m *Model) checkMarketStatus() tea.Msg {
 // runConnectionTest runs the connection test
 func (m *Model) runConnectionTest() tea.Cmd {
 	return func() tea.Msg {
-		client := fetcher.NewDirectYahooClient()
+		dns := os.Getenv("STOCKMAP_DNS")
+		client := fetcher.NewDirectYahooClientWithDNS(dns)
 		defer client.Close()
 		result := client.CheckConnection()
 		return ConnectionResultMsg{Result: &result}
