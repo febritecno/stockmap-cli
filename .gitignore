@@ -32,3 +32,6 @@ debug
 
 # Local config (if any)
 config/local*.json
+
+# Releases
+release/
