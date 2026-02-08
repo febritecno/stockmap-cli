@@ -6,11 +6,11 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/febritecno/stockmap/internal/alerts"
-	"github.com/febritecno/stockmap/internal/fetcher"
-	"github.com/febritecno/stockmap/internal/history"
-	"github.com/febritecno/stockmap/internal/screener"
-	"github.com/febritecno/stockmap/internal/ui/views"
+	"github.com/febritecno/stockmap-cli/internal/alerts"
+	"github.com/febritecno/stockmap-cli/internal/fetcher"
+	"github.com/febritecno/stockmap-cli/internal/history"
+	"github.com/febritecno/stockmap-cli/internal/screener"
+	"github.com/febritecno/stockmap-cli/internal/ui/views"
 )
 
 // View represents the current view state

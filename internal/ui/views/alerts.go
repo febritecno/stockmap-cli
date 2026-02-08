@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/febritecno/stockmap/internal/alerts"
-	"github.com/febritecno/stockmap/internal/screener"
-	"github.com/febritecno/stockmap/internal/styles"
-	"github.com/febritecno/stockmap/internal/ui/components"
+	"github.com/febritecno/stockmap-cli/internal/alerts"
+	"github.com/febritecno/stockmap-cli/internal/screener"
+	"github.com/febritecno/stockmap-cli/internal/styles"
+	"github.com/febritecno/stockmap-cli/internal/ui/components"
 )
 
 // AlertsView displays and manages price alerts

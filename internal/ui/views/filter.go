@@ -7,8 +7,8 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/febritecno/stockmap/internal/screener"
-	"github.com/febritecno/stockmap/internal/styles"
+	"github.com/febritecno/stockmap-cli/internal/screener"
+	"github.com/febritecno/stockmap-cli/internal/styles"
 )
 
 // FilterField represents which field is currently being edited

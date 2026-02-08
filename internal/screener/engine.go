@@ -4,8 +4,8 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/febritecno/stockmap/internal/fetcher"
-	"github.com/febritecno/stockmap/internal/watchlist"
+	"github.com/febritecno/stockmap-cli/internal/fetcher"
+	"github.com/febritecno/stockmap-cli/internal/watchlist"
 )
 
 // FilterCriteria defines the screening criteria

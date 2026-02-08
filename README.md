@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/febritecno/stockmap/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"></a>
+  <a href="https://github.com/febritecno/stockmap-cli/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"></a>
   <a href="https://go.dev/"><img src="https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go&logoColor=white" alt="Go Version"></a>
   <a href="https://github.com/charmbracelet/bubbletea"><img src="https://img.shields.io/badge/TUI-Bubble%20Tea-ff69b4" alt="Bubble Tea"></a>
   <a href="#"><img src="https://img.shields.io/badge/Platform-macOS%20|%20Linux%20|%20Windows-lightgrey" alt="Platform"></a>
@@ -68,21 +68,21 @@
 ### Quick Install (macOS/Linux)
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/febritecno/stockmap/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/febritecno/stockmap-cli/main/install.sh | bash
 ```
 
 ### Go Install
 
 ```bash
-go install github.com/febritecno/stockmap@latest
+go install github.com/febritecno/stockmap-cli@latest
 ```
 
 ### Build from Source
 
 ```bash
 # Clone repository
-git clone https://github.com/febritecno/stockmap.git
-cd stockmap
+git clone https://github.com/febritecno/stockmap-cli.git
+cd stockmap-cli
 
 # Build using Make
 make build
@@ -96,7 +96,7 @@ make install
 
 ### Pre-built Binaries
 
-Download from the [Releases](https://github.com/febritecno/stockmap/releases) page.
+Download from the [Releases](https://github.com/febritecno/stockmap-cli/releases) page.
 
 ---
 

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/febritecno/stockmap/cmd"
+	"github.com/febritecno/stockmap-cli/cmd"
 )
 
 func main() {

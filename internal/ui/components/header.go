@@ -5,7 +5,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/febritecno/stockmap/internal/styles"
+	"github.com/febritecno/stockmap-cli/internal/styles"
 )
 
 // Header represents the app header component

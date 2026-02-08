@@ -2,7 +2,7 @@
 
 APP_NAME := stockmap
 VERSION := $(shell git describe --tags --abbrev=0 2>/dev/null || echo "dev")
-LDFLAGS := -ldflags="-X 'github.com/febritecno/stockmap/cmd.version=$(VERSION)'"
+LDFLAGS := -ldflags="-X 'github.com/febritecno/stockmap-cli/cmd.version=$(VERSION)'"
 
 all: build
 
