@@ -1,4 +1,4 @@
-.PHONY: all build install clean test run
+.PHONY: all build install uninstall clean test run
 
 APP_NAME := stockmap
 VERSION := $(shell git describe --tags --abbrev=0 2>/dev/null || echo "dev")
@@ -13,6 +13,13 @@ build:
 install:
 	@echo "Installing $(APP_NAME)..."
 	go install $(LDFLAGS) .
+
+uninstall:
+	@echo "Uninstalling $(APP_NAME)..."
+	rm -f $(GOPATH)/bin/$(APP_NAME)
+	rm -f $(GOPATH)/bin/$(APP_NAME)-cli
+	rm -f /usr/local/bin/$(APP_NAME)
+	rm -f ~/.local/bin/$(APP_NAME)
 
 clean:
 	@echo "Cleaning..."
