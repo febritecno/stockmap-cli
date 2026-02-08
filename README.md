@@ -98,6 +98,14 @@ make install
 
 Download from the [Releases](https://github.com/febritecno/stockmap-cli/releases) page.
 
+## Uninstall
+
+To uninstall StockMap and remove it from your system:
+
+```bash
+curl -sL https://raw.githubusercontent.com/febritecno/stockmap-cli/main/uninstall.sh | bash
+```
+
 ---
 
 ## Usage
