@@ -4,11 +4,19 @@ APP_NAME := stockmap
 VERSION := $(shell git describe --tags --abbrev=0 2>/dev/null || echo "dev")
 LDFLAGS := -ldflags="-X 'github.com/febritecno/stockmap-cli/cmd.version=$(VERSION)'"
 
+# Default Go build command
+GOBUILD := go build
+
+# If on Termux (linux/aarch64), disable CGO
+ifeq ($(shell uname -s)-$(shell uname -m), Linux-aarch64)
+	GOBUILD := CGO_ENABLED=0 go build
+endif
+
 all: build
 
 build:
 	@echo "Building $(APP_NAME)..."
-	go build $(LDFLAGS) -o $(APP_NAME) main.go
+	$(GOBUILD) $(LDFLAGS) -o $(APP_NAME) main.go
 
 install:
 	@echo "Installing $(APP_NAME)..."
