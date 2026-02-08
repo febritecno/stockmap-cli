@@ -5,6 +5,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
+	"stockmap/internal/fetcher"
 	"stockmap/internal/screener"
 	"stockmap/internal/styles"
 	"stockmap/internal/ui/components"
@@ -12,22 +13,26 @@ import (
 
 // WatchlistView shows only watchlist stocks
 type WatchlistView struct {
-	width       int
-	height      int
-	header      *components.Header
-	table       *components.Table
-	statusBar   *components.StatusBar
-	allStocks   []*screener.ScreenResult
-	inputActive bool
-	inputText   string
+	width           int
+	height          int
+	header          *components.Header
+	table           *components.Table
+	statusBar       *components.StatusBar
+	allStocks       []*screener.ScreenResult
+	inputActive     bool
+	inputText       string
+	categoryMode    bool
+	categories      []fetcher.Category
+	currentCategory int
 }
 
 // NewWatchlistView creates a new watchlist view
 func NewWatchlistView() *WatchlistView {
 	return &WatchlistView{
-		header:    components.NewHeader(),
-		table:     components.NewTable(),
-		statusBar: components.NewStatusBar(),
+		header:     components.NewHeader(),
+		table:      components.NewTable(),
+		statusBar:  components.NewStatusBar(),
+		categories: fetcher.DefaultCategories(),
 	}
 }
 
@@ -70,25 +75,71 @@ func (w *WatchlistView) Refresh() {
 
 // MoveUp moves selection up
 func (w *WatchlistView) MoveUp() {
-	w.table.MoveUp()
+	if w.categoryMode {
+		if w.currentCategory > 0 {
+			w.currentCategory--
+		}
+	} else {
+		w.table.MoveUp()
+	}
 }
 
 // MoveDown moves selection down
 func (w *WatchlistView) MoveDown() {
-	w.table.MoveDown()
+	if w.categoryMode {
+		if w.currentCategory < len(w.categories)-1 {
+			w.currentCategory++
+		}
+	} else {
+		w.table.MoveDown()
+	}
 }
 
 // SelectedResult returns the selected stock
 func (w *WatchlistView) SelectedResult() *screener.ScreenResult {
+	if w.categoryMode {
+		return nil
+	}
 	return w.table.SelectedRow()
 }
 
 // ToggleInput toggles input mode
 func (w *WatchlistView) ToggleInput() {
 	w.inputActive = !w.inputActive
-	if !w.inputActive {
+	if w.inputActive {
+		w.categoryMode = false
 		w.inputText = ""
 	}
+}
+
+// ToggleCategoryMode toggles category selection mode
+func (w *WatchlistView) ToggleCategoryMode() {
+	w.categoryMode = !w.categoryMode
+	if w.categoryMode {
+		w.inputActive = false
+		w.currentCategory = 0
+	}
+}
+
+// IsCategoryMode returns whether category mode is active
+func (w *WatchlistView) IsCategoryMode() bool {
+	return w.categoryMode
+}
+
+// GetSelectedCategorySymbols returns symbols for the selected category
+func (w *WatchlistView) GetSelectedCategorySymbols() []string {
+	if w.categoryMode && w.currentCategory >= 0 && w.currentCategory < len(w.categories) {
+		return w.categories[w.currentCategory].Symbols
+	}
+	return nil
+}
+
+// GetSelectedCategoryName returns the name of the selected category
+func (w *WatchlistView) GetSelectedCategoryName() string {
+	if w.categoryMode && w.currentCategory >= 0 && w.currentCategory < len(w.categories) {
+		return w.categories[w.currentCategory].Name
+	}
+	return ""
 }
 
 // IsInputActive returns whether input is active
@@ -130,6 +181,35 @@ func (w *WatchlistView) View() string {
 	b.WriteString(components.RenderDivider(w.width))
 	b.WriteString("\n")
 
+	// Category Selection Mode
+	if w.categoryMode {
+		b.WriteString("\n")
+		b.WriteString(styles.TitleStyle.Render("  Add Category to Watchlist"))
+		b.WriteString("\n\n")
+
+		// Render category list
+		for i, cat := range w.categories {
+			prefix := "  "
+			nameStyle := styles.TextStyle
+			countStyle := styles.MutedStyle()
+
+			if i == w.currentCategory {
+				prefix = "> "
+				nameStyle = styles.KeyStyle
+				countStyle = styles.InfoStyle
+			}
+
+			b.WriteString(prefix)
+			b.WriteString(nameStyle.Render(cat.Name))
+			b.WriteString(" ")
+			b.WriteString(countStyle.Render("(" + intToStr(len(cat.Symbols)) + ")"))
+			b.WriteString("\n")
+		}
+		b.WriteString("\n")
+		b.WriteString(styles.HelpStyle.Render("  Press [Enter] to add all stocks in category, [ESC] to cancel"))
+		return b.String()
+	}
+
 	// Input form if active
 	if w.inputActive {
 		b.WriteString("\n")
@@ -163,7 +243,7 @@ func (w *WatchlistView) View() string {
 			b.WriteString(centerText(emptyText, w.width))
 			b.WriteString("\n\n")
 
-			hint := styles.HelpStyle.Render("Press [A] to add a stock symbol")
+			hint := styles.HelpStyle.Render("Press [A] to add a stock symbol, or [H] to add by category")
 			b.WriteString(centerText(hint, w.width))
 			b.WriteString("\n")
 		} else {
@@ -187,6 +267,7 @@ func (w *WatchlistView) renderStatusBar() string {
 	divider := components.RenderDivider(w.width)
 
 	keys := styles.KeyStyle.Render("[A]") + styles.HelpStyle.Render("dd  ") +
+		styles.KeyStyle.Render("[H]") + styles.HelpStyle.Render("Category  ") +
 		styles.KeyStyle.Render("[R]") + styles.HelpStyle.Render("emove  ") +
 		styles.KeyStyle.Render("[D]") + styles.HelpStyle.Render("etails  ") +
 		styles.KeyStyle.Render("[ESC]") + styles.HelpStyle.Render(" Back  ") +

@@ -39,6 +39,9 @@ var (
 			Bold(true).
 			Foreground(ColorText)
 
+	TextStyle = lipgloss.NewStyle().
+			Foreground(ColorText)
+
 	// Status indicators
 	MarketOpenStyle = lipgloss.NewStyle().
 			Bold(true).

@@ -25,7 +25,7 @@ func NewDirectYahooClient() *DirectYahooClient {
 		httpClient: &http.Client{
 			Timeout: 15 * time.Second,
 		},
-		rateLimiter: time.NewTicker(100 * time.Millisecond), // 10 requests per second max
+		rateLimiter: time.NewTicker(250 * time.Millisecond), // 4 requests per second max
 	}
 }
 

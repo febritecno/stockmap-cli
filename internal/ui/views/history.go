@@ -13,12 +13,12 @@ import (
 
 // HistoryView shows saved scan history
 type HistoryView struct {
-	width     int
-	height    int
-	manager   *history.Manager
-	records   []*history.ScanRecord
-	cursor    int
-	offset    int
+	width   int
+	height  int
+	manager *history.Manager
+	records []*history.ScanRecord
+	cursor  int
+	offset  int
 }
 
 // NewHistoryView creates a new history view
@@ -145,14 +145,8 @@ func (h *HistoryView) View() string {
 		b.WriteString("\n")
 	} else {
 		// Table header
-		header := fmt.Sprintf("  %-4s  %-20s  %-10s  %-10s  %s",
-			"#",
-			"DATE & TIME",
-			"SCANNED",
-			"FOUND",
-			"AGE",
-		)
-		b.WriteString(styles.TableHeaderStyle.Render(header))
+		header := fmt.Sprintf("%-4s %-10s %-5s %-5s %-5s %-10s", "#", "DATE", "TIME", "SCAN", "FOUND", "AGE")
+		b.WriteString(styles.KeyStyle.Render(header))
 		b.WriteString("\n")
 		b.WriteString(components.RenderDivider(h.width))
 		b.WriteString("\n")
@@ -173,32 +167,21 @@ func (h *HistoryView) View() string {
 			record := h.records[i]
 			selected := i == h.cursor
 
-			// Format row
-			num := fmt.Sprintf("%d", i+1)
-			dateTime := record.Timestamp.Format("2006-01-02 15:04:05")
-			scanned := fmt.Sprintf("%d", record.TotalScanned)
-			found := fmt.Sprintf("%d", record.TotalFound)
-			age := history.FormatTimestamp(record.Timestamp)
-
-			row := fmt.Sprintf("  %-4s  %-20s  %-10s  %-10s  %s",
-				num,
-				dateTime,
-				scanned,
-				found,
-				age,
+			row := fmt.Sprintf("%-4d %-10s %-5s %-5d %-5d %-10s",
+				i+1,
+				record.Timestamp.Format("01-02"),
+				record.Timestamp.Format("15:04"),
+				record.TotalScanned,
+				record.TotalFound,
+				history.FormatTimestamp(record.Timestamp),
 			)
 
 			if selected {
-				row = styles.TableRowSelectedStyle.Width(h.width).Render(row)
+				row = styles.TableRowSelectedStyle.Render(row)
+			} else if record.TotalFound == 0 {
+				row = styles.MutedStyle().Render(row)
 			} else {
-				// Color code found count
-				if record.TotalFound > 10 {
-					row = styles.TableRowStyle.Render(row)
-				} else if record.TotalFound > 0 {
-					row = styles.TableRowStyle.Render(row)
-				} else {
-					row = styles.MutedStyle().Render(row)
-				}
+				row = styles.TableRowStyle.Render(row)
 			}
 
 			b.WriteString(row)

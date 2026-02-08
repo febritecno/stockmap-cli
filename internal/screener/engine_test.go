@@ -6,6 +6,10 @@ import (
 )
 
 func TestEngine_Scan(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping network test in short mode")
+	}
+
 	engine := NewEngine(3)
 
 	symbols := []string{"AAPL", "MSFT"}
@@ -33,6 +37,10 @@ func TestEngine_Scan(t *testing.T) {
 }
 
 func TestEngine_ScanWithFilter(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping network test in short mode")
+	}
+
 	engine := NewEngine(3)
 
 	// Set strict criteria

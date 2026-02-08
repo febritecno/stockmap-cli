@@ -7,10 +7,14 @@ import (
 )
 
 func TestDirectYahooClient_FetchQuote(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping network test in short mode")
+	}
+
 	client := NewDirectYahooClient()
 	defer client.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	data, err := client.FetchQuote(ctx, "AAPL")
@@ -30,10 +34,14 @@ func TestDirectYahooClient_FetchQuote(t *testing.T) {
 }
 
 func TestDirectYahooClient_FetchHistorical(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping network test in short mode")
+	}
+
 	client := NewDirectYahooClient()
 	defer client.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	data, err := client.FetchHistorical(ctx, "AAPL", 30)
@@ -49,10 +57,14 @@ func TestDirectYahooClient_FetchHistorical(t *testing.T) {
 }
 
 func TestDirectYahooClient_FetchComplete(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping network test in short mode")
+	}
+
 	client := NewDirectYahooClient()
 	defer client.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	data, err := client.FetchComplete(ctx, "MSFT")
@@ -77,6 +89,10 @@ func TestDirectYahooClient_FetchComplete(t *testing.T) {
 }
 
 func TestDirectYahooClient_CheckConnection(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping network test in short mode")
+	}
+
 	client := NewDirectYahooClient()
 	defer client.Close()
 
@@ -101,6 +117,10 @@ func TestDirectYahooClient_CheckConnection(t *testing.T) {
 }
 
 func TestWorkerPool_Start(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping network test in short mode")
+	}
+
 	pool := NewWorkerPool(3)
 
 	symbols := []string{"AAPL", "MSFT", "GOOGL"}

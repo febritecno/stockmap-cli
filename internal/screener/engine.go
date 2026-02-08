@@ -52,10 +52,7 @@ type Engine struct {
 	mu           sync.RWMutex
 	onProgress   func(completed, total int, current string)
 	onProgressV2 func(progress ScanProgress)
-	successCount int
-	errorCount   int
-	lastError    string
-	errorSymbol  string
+	progress     ScanProgress
 }
 
 // NewEngine creates a new screening engine
@@ -86,10 +83,9 @@ func (e *Engine) SetVerboseProgressCallback(cb func(progress ScanProgress)) {
 func (e *Engine) Scan(symbols []string) []*ScreenResult {
 	e.mu.Lock()
 	e.results = make([]*ScreenResult, 0)
-	e.successCount = 0
-	e.errorCount = 0
-	e.lastError = ""
-	e.errorSymbol = ""
+	e.progress = ScanProgress{
+		Total: len(symbols),
+	}
 	e.mu.Unlock()
 
 	total := len(symbols)
@@ -100,45 +96,38 @@ func (e *Engine) Scan(symbols []string) []*ScreenResult {
 	for data := range resultChan {
 		result := CalculateMetrics(data)
 
-		// Track errors for verbose output
 		e.mu.Lock()
+		// Update progress stats
 		if data.Error != nil {
-			e.errorCount++
-			e.lastError = data.Error.Error()
-			e.errorSymbol = data.Symbol
+			e.progress.ErrorCount++
+			e.progress.LastError = data.Error.Error()
+			e.progress.ErrorSymbol = data.Symbol
 		} else {
-			e.successCount++
+			e.progress.SuccessCount++
 		}
-		localSuccessCount := e.successCount
-		localErrorCount := e.errorCount
-		localLastError := e.lastError
-		localErrorSymbol := e.errorSymbol
-		e.mu.Unlock()
+		e.progress.Current = data.Symbol
 
 		// Mark if pinned in watchlist
 		result.IsPinned = e.watchlist.IsPinned(result.Symbol)
 
 		// Only add if passes filter (or is pinned)
 		if result.IsPinned || e.passesFilter(result) {
-			e.mu.Lock()
 			e.results = append(e.results, result)
-			e.mu.Unlock()
 		}
+		e.mu.Unlock()
 
 		completed++
+
+		e.mu.Lock()
+		e.progress.Completed = completed
+		currentProgress := e.progress
+		e.mu.Unlock()
+
 		if e.onProgress != nil {
 			e.onProgress(completed, total, data.Symbol)
 		}
 		if e.onProgressV2 != nil {
-			e.onProgressV2(ScanProgress{
-				Completed:    completed,
-				Total:        total,
-				Current:      data.Symbol,
-				SuccessCount: localSuccessCount,
-				ErrorCount:   localErrorCount,
-				LastError:    localLastError,
-				ErrorSymbol:  localErrorSymbol,
-			})
+			e.onProgressV2(currentProgress)
 		}
 	}
 
@@ -149,6 +138,13 @@ func (e *Engine) Scan(symbols []string) []*ScreenResult {
 	e.sortResults()
 
 	return e.GetResults()
+}
+
+// GetProgress returns the current scan progress
+func (e *Engine) GetProgress() ScanProgress {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.progress
 }
 
 // addWatchlistPlaceholders adds placeholder results for watchlist symbols not in results

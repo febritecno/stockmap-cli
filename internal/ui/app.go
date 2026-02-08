@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strconv"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -200,6 +201,11 @@ func (m *Model) startScan() tea.Cmd {
 			symbols := m.scanSymbols
 			if len(symbols) == 0 {
 				symbols = fetcher.DefaultSymbols()
+			}
+			// Only take first 50 symbols for "Scan All" to prevent rate limiting issues for now
+			// until we implement better batching/backoff
+			if m.scanSymbols == nil && len(symbols) > 50 {
+				symbols = symbols[:50]
 			}
 			total := len(symbols)
 
@@ -421,18 +427,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // tickScan returns a command to check scan progress and animate
 func (m *Model) tickScan() tea.Cmd {
 	return tea.Tick(100*time.Millisecond, func(t time.Time) tea.Msg {
-		results := m.engine.GetResults()
-
-		// Calculate total based on what we're actually scanning
-		total := len(m.scanSymbols)
-		if total == 0 {
-			total = len(fetcher.DefaultSymbols())
-		}
+		progress := m.engine.GetProgress()
 
 		return ScanProgressMsg{
-			Completed: len(results),
-			Total:     total,
-			Current:   "",
+			Completed:    progress.Completed,
+			Total:        progress.Total,
+			Current:      progress.Current,
+			SuccessCount: progress.SuccessCount,
+			ErrorCount:   progress.ErrorCount,
+			LastError:    progress.LastError,
+			ErrorSymbol:  progress.ErrorSymbol,
 		}
 	})
 }
@@ -546,7 +550,10 @@ func (m *Model) handleDashboardKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// Start reload - reload ALL symbols from current table results
+		// Determine if we can reload
+		canReload := false
+
+		// 1. If we have results, refresh ONLY them
 		if len(m.results) > 0 {
 			// Extract symbols from current results in table
 			symbols := make([]string, 0, len(m.results))
@@ -554,10 +561,18 @@ func (m *Model) handleDashboardKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				symbols = append(symbols, r.Symbol)
 			}
 			m.scanSymbols = symbols
+			canReload = true
+		} else if m.totalScanned > 0 || len(m.scanSymbols) > 0 {
+			// 2. If no results but we scanned before (Retry last scan)
+			// Keep existing m.scanSymbols
+			canReload = true
+		}
+
+		if canReload {
 			m.isReload = true
 			m.scanning = true
 			m.dashboard.SetReloading(true)
-			m.dashboard.SetMessage("")
+			m.dashboard.SetMessage("Reloading...")
 			return m, tea.Batch(m.startScan(), m.reloadTick())
 		}
 
@@ -596,6 +611,22 @@ func (m *Model) handleDashboardKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "down", "j":
 		m.dashboard.MoveDown()
 		return m, nil
+
+	case "x", "X", "backspace":
+		// Remove selected stock from results
+		if selected := m.dashboard.SelectedResult(); selected != nil {
+			// Filter out the selected symbol
+			newResults := make([]*screener.ScreenResult, 0, len(m.results)-1)
+			for _, r := range m.results {
+				if r.Symbol != selected.Symbol {
+					newResults = append(newResults, r)
+				}
+			}
+			m.results = newResults
+			m.dashboard.SetResults(m.results)
+			m.dashboard.SetMessage("Removed " + selected.Symbol)
+		}
+		return m, nil
 	}
 
 	return m, nil
@@ -613,6 +644,9 @@ func (m *Model) handleScannerKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc":
 		m.engine.Stop()
 		m.scanning = false
+		// Save whatever results we have so far
+		m.results = m.engine.GetResults()
+		m.dashboard.SetResults(m.results)
 		m.currentView = ViewDashboard
 		return m, nil
 	}
@@ -686,7 +720,45 @@ func (m *Model) handleWatchlistKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	// Handle Category Mode
+	if m.watchlist.IsCategoryMode() {
+		switch msg.String() {
+		case "esc":
+			m.watchlist.ToggleCategoryMode()
+			return m, nil
+		case "enter":
+			// Add all symbols from selected category
+			symbols := m.watchlist.GetSelectedCategorySymbols()
+			catName := m.watchlist.GetSelectedCategoryName()
+			if len(symbols) > 0 {
+				count := 0
+				for _, s := range symbols {
+					if err := m.engine.AddToWatchlist(s); err == nil {
+						count++
+					}
+				}
+				m.results = m.engine.GetResults()
+				m.dashboard.SetResults(m.results)
+				m.watchlist.SetResults(m.results)
+				m.dashboard.SetMessage("Added " + strconv.Itoa(count) + " stocks from " + catName)
+			}
+			m.watchlist.ToggleCategoryMode()
+			return m, nil
+		case "up", "k":
+			m.watchlist.MoveUp()
+			return m, nil
+		case "down", "j":
+			m.watchlist.MoveDown()
+			return m, nil
+		}
+		return m, nil
+	}
+
 	switch msg.String() {
+	case "h", "H":
+		m.watchlist.ToggleCategoryMode()
+		return m, nil
+
 	case "a", "A":
 		// Add new symbol to watchlist
 		m.watchlist.ToggleInput()

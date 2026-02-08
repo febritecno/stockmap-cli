@@ -89,6 +89,7 @@ func (s *StatusBar) View() string {
 		{"W", "atchlist"},
 		{"H", "istory"},
 		{"D", "etails"},
+		{"X", "Remove"},
 		{"Q", "uit"},
 	}
 

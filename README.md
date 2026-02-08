@@ -27,6 +27,7 @@
 | **Valuation Metrics** | P/B Ratio, P/E Ratio, Graham Number, Book Value |
 | **Risk Management** | Dynamic Stop-Loss/Take-Profit based on ATR volatility |
 | **Confluence Scoring** | Combined weighted score (Technical + Valuation + Risk) |
+| **Price Alerts** | Set alerts for Price, RSI, or % Change with visual notifications |
 | **Interactive TUI** | Navigate with arrow keys or vim-style bindings |
 | **Watchlist** | Pin favorite stocks with persistent JSON storage |
 | **154+ Stocks** | Default scan covers major US equities across all sectors |
@@ -110,16 +111,31 @@ stockmap scan
 
 | Key | Action |
 |-----|--------|
-| `S` | Start new scan |
+| `S` | Open scan mode selection |
 | `W` | Toggle watchlist view |
 | `H` | View scan history |
+| `P` | View alerts dashboard |
 | `D` / `Enter` | View stock details |
 | `A` | Add to watchlist |
-| `R` | Remove from watchlist |
+| `R` | Reload/Refresh data |
+| `T` | Toggle auto-reload (60s) |
+| `C` | Check connection status |
 | `↑` / `k` | Move up |
 | `↓` / `j` | Move down |
 | `Esc` | Go back |
 | `Q` / `Ctrl+C` | Quit |
+
+### Alerts View
+
+| Key | Action |
+|-----|--------|
+| `N` | Create new alert |
+| `D` | Delete selected alert |
+| `T` | Toggle alert active/inactive |
+| `R` | Reset triggered status |
+| `C` | Clear all triggered alerts |
+| `Space` | Cycle alert type (in input mode) |
+| `Esc` | Back to dashboard |
 
 ### History View
 
@@ -177,6 +193,13 @@ Default watchlist stored in `config/watchlist.json`:
 
 Edit this file to customize your pinned stocks.
 
+### Alerts
+
+Alerts are stored in `config/alerts.json`. You can configure:
+- **Price Above/Below**: Trigger when price crosses a threshold
+- **RSI High/Low**: Trigger on overbought/oversold conditions
+- **% Change**: Trigger on significant price movements
+
 ### Scan History
 
 Scan results are automatically saved to `config/history/` as JSON files. Each scan creates a timestamped file:
@@ -214,12 +237,15 @@ stockmap/
 ├── cmd/
 │   └── root.go                 # Cobra CLI entry
 ├── internal/
+│   ├── alerts/
+│   │   └── alerts.go           # Price & RSI alert manager
 │   ├── analysis/
 │   │   ├── indicators.go       # RSI, ATR, SMA, EMA
 │   │   ├── valuation.go        # PBV, Graham Number
 │   │   └── risk.go             # SL/TP calculations
 │   ├── fetcher/
-│   │   ├── yahoo.go            # Yahoo Finance client
+│   │   ├── yahoo.go            # Yahoo Finance client (library)
+│   │   ├── yahoo_direct.go     # Direct API client
 │   │   └── pool.go             # Worker pool (10 concurrent)
 │   ├── history/
 │   │   └── history.go          # Scan history management
@@ -230,12 +256,13 @@ stockmap/
 │   │   └── styles.go           # Lipgloss styling
 │   ├── ui/
 │   │   ├── app.go              # Main Bubble Tea model
-│   │   ├── views/              # Dashboard, Scanner, Details, History
+│   │   ├── views/              # Dashboard, Scanner, Details, History, Alerts
 │   │   └── components/         # Table, Header, StatusBar
 │   └── watchlist/
 │       └── watchlist.go        # JSON CRUD
 ├── config/
 │   ├── history/                # Saved scan results
+│   ├── alerts.json             # User alerts
 │   └── watchlist.json          # User watchlist
 ├── main.go
 ├── go.mod
@@ -260,6 +287,20 @@ stockmap/
 | [lipgloss](https://github.com/charmbracelet/lipgloss) | Terminal styling |
 | [finance-go](https://github.com/piquette/finance-go) | Yahoo Finance API |
 | [cobra](https://github.com/spf13/cobra) | CLI framework |
+
+---
+
+## Testing
+
+Run the test suite to verify functionality:
+
+```bash
+# Run all tests
+go test -v ./...
+
+# Run screener tests specifically
+go test -v ./internal/screener/...
+```
 
 ---
 
