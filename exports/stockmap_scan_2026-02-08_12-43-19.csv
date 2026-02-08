@@ -1,3 +1,0 @@
-Symbol,Name,Price,Change%,RSI,PBV,Graham Number,Graham Upside%,ATR,Volatility,Score,Is Oversold,Is Undervalued,Is Pinned
-SLV,iShares Silver Trust,70.19,5.25,44.09,0.00,0.00,0.00,7.88,107.09,47,false,false,true
-WDC,Western Digital Corporation,282.58,8.61,63.50,0.00,0.00,0.00,20.85,88.69,32,false,false,true
