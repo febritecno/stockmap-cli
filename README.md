@@ -30,8 +30,13 @@
 | **Price Alerts** | Set alerts for Price, RSI, or % Change with visual notifications |
 | **Filter Controls** | Adjust RSI, PBV, and Score thresholds dynamically |
 | **Search & Sort** | Quick filter by symbol and sort by any column |
+| **Auto-load History** | Automatically loads last scan on startup |
+| **Auto-scan** | Starts scanning automatically if no history exists |
+| **Help & Legends** | Built-in help with color legends and shortcuts |
+| **Responsive UI** | Adapts to different terminal sizes |
 | **Interactive TUI** | Navigate with arrow keys or vim-style bindings |
 | **Watchlist** | Pin favorite stocks with persistent JSON storage |
+| **Scan History** | Browse and reload previous scan results |
 | **154+ Stocks** | Default scan covers major US equities across all sectors |
 
 ---
@@ -43,16 +48,16 @@
 │  ◉ STOCKMAP v1.0         Market: OPEN      Strategy: Deep Value │
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  TICKER │ PRICE   │ TP      │ SL      │ RSI  │ PBV  │ SCORE     │
+│  TICKER │ PRICE   │ TP      │ SL      │ RSI  │ VOL  │ SCORE     │
 │  ───────┼─────────┼─────────┼─────────┼──────┼──────┼───────────│
-│  ★ SLV  │ $22.10  │ $24.50  │ $20.80  │ 31.2 │ 1.1  │ 88 ████▌  │
-│  ★ WDC  │ $64.50  │ $72.10  │ $61.20  │ 34.5 │ 1.4  │ 82 ████   │
-│    INTC │ $30.15  │ $35.00  │ $28.50  │ 28.9 │ 0.9  │ 95 █████  │
-│    VZ   │ $39.80  │ $43.20  │ $38.10  │ 30.1 │ 1.0  │ 78 ███▊   │
+│  * SLV  │ $22.10  │ $24.50  │ $20.80  │ 31.2 │ 18   │ 88 ██████ │
+│  * WDC  │ $64.50  │ $72.10  │ $61.20  │ 34.5 │ 22   │ 82 █████  │
+│    INTC │ $30.15  │ $35.00  │ $28.50  │ 28.9 │ 15   │ 95 ██████ │
+│    VZ   │ $39.80  │ $43.20  │ $38.10  │ 30.1 │ 12   │ 78 █████  │
 │                                                                  │
 ├──────────────────────────────────────────────────────────────────┤
-│  [S]can  [W]atchlist  [F]ilter  [D]etails  [Q]uit               │
-│  Scanned: 154 │ Found: 4 │ Last Update: 12:34:56                │
+│  [S]can [R]eload [F]ilter [D]etails [W]atch [H]istory [I]nfo [Q] │
+│  Scanned: 154 │ Found: 4 │ Updated: 12:34:56                    │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -105,6 +110,11 @@ stockmap version
 stockmap scan
 ```
 
+### Startup Behavior
+
+- **With History**: Automatically loads the most recent scan results
+- **Without History**: Automatically starts scanning all stocks
+
 ---
 
 ## Keyboard Shortcuts
@@ -114,16 +124,16 @@ stockmap scan
 | Key | Action |
 |-----|--------|
 | `S` | Open scan mode selection |
-| `W` | Toggle watchlist view |
-| `H` | View scan history |
-| `P` | View alerts dashboard |
+| `R` | Reload/Refresh data (toggle) |
+| `T` | Toggle auto-reload (60s interval) |
 | `F` | Open filter criteria editor |
 | `D` / `Enter` | View stock details |
 | `I` | Show help/tutorial/legends |
-| `A` | Add to watchlist |
+| `W` | View watchlist |
+| `H` | View scan history |
+| `P` | View price alerts |
+| `A` | Add selected to watchlist |
 | `X` | Clear all results |
-| `R` | Reload/Refresh data |
-| `T` | Toggle auto-reload (60s) |
 | `C` | Check connection status |
 | `/` | Quick search by symbol |
 | `Tab` | Cycle sort column |
@@ -132,6 +142,25 @@ stockmap scan
 | `↓` / `j` | Move down |
 | `Esc` | Go back / Clear search |
 | `Q` / `Ctrl+C` | Quit |
+
+### Details View
+
+| Key | Action |
+|-----|--------|
+| `G` | Toggle price chart |
+| `A` | Add to watchlist |
+| `R` | Remove from watchlist |
+| `Esc` | Back to dashboard |
+
+### Watchlist View
+
+| Key | Action |
+|-----|--------|
+| `A` | Add new symbol |
+| `H` | Browse stock categories |
+| `R` | Remove selected |
+| `D` / `Enter` | View details |
+| `Esc` | Back to dashboard |
 
 ### Alerts View
 
@@ -167,6 +196,53 @@ stockmap scan
 | `↓` / `j` | Move down |
 | `Esc` | Back to dashboard |
 
+### Help View
+
+| Key | Action |
+|-----|--------|
+| `Esc` / `I` | Close help |
+
+---
+
+## Color Legends
+
+Press `I` to view the built-in help with color legends:
+
+### Confluence Score
+| Range | Color | Meaning |
+|-------|-------|---------|
+| 75-100 | Green | Strong Buy Signal |
+| 50-74 | Yellow | Moderate Signal |
+| 0-49 | Red | Weak Signal |
+
+### RSI Indicator
+| Range | Color | Meaning |
+|-------|-------|---------|
+| < 30 | Green | Oversold (Buy opportunity) |
+| 30-70 | White | Neutral |
+| > 70 | Red | Overbought (Sell signal) |
+
+### P/B Value (PBV)
+| Range | Color | Meaning |
+|-------|-------|---------|
+| < 1.0 | Green | Undervalued |
+| 1.0-2.0 | White | Fair value |
+| > 2.0 | Red | Overvalued |
+
+### Volatility
+| Range | Color | Meaning |
+|-------|-------|---------|
+| < 20% | Green | Low risk |
+| 20-40% | White | Moderate risk |
+| > 40% | Red | High risk |
+
+### Symbols
+| Symbol | Meaning |
+|--------|---------|
+| `*` | Pinned/Watchlist stock |
+| `TP` | Take Profit target price |
+| `SL` | Stop Loss price |
+
 ---
 
 ## Screening Strategy
@@ -174,14 +250,14 @@ stockmap scan
 StockMap uses a **Deep Value** strategy combining multiple factors:
 
 ### Technical Indicators
-- **RSI < 40** — Oversold/neutral territory preferred
-- **Price < SMA20** — Trading below short-term average
-- **Risk:Reward ≥ 1:1.5** — Favorable entry points
+- **RSI < 40** - Oversold/neutral territory preferred
+- **Price < SMA20** - Trading below short-term average
+- **Risk:Reward >= 1:1.5** - Favorable entry points
 
 ### Valuation Metrics
-- **P/B Ratio < 2.0** — Trading near or below book value
-- **Graham Upside > 0%** — Potential upside to intrinsic value
-- **Low P/E Ratio** — Earnings relative to price
+- **P/B Ratio < 2.0** - Trading near or below book value
+- **Graham Upside > 0%** - Potential upside to intrinsic value
+- **Low P/E Ratio** - Earnings relative to price
 
 ### Confluence Score (0-100)
 
@@ -192,10 +268,10 @@ StockMap uses a **Deep Value** strategy combining multiple factors:
 | Risk | 30% | Volatility-adjusted |
 
 **Bonus Points:**
-- ✅ Both oversold AND undervalued
-- ✅ PBV < 1.0 (below book value)
-- ✅ Graham Upside > 50%
-- ✅ Risk:Reward ≥ 1:2.5
+- Both oversold AND undervalued
+- PBV < 1.0 (below book value)
+- Graham Upside > 50%
+- Risk:Reward >= 1:2.5
 
 ---
 
@@ -222,7 +298,7 @@ Alerts are stored in `config/alerts.json`. You can configure:
 
 ### Scan History
 
-Scan results are automatically saved to `config/history/` as JSON files. Each scan creates a timestamped file:
+Scan results are automatically saved to `config/history/` as JSON files:
 
 ```
 config/history/
@@ -233,10 +309,10 @@ config/history/
 
 **Features:**
 - Auto-save after each scan completes
+- Auto-load last scan on startup
 - Browse history with `[H]` key
 - Load any previous scan with `[Enter]`
 - Delete old scans with `[X]`
-- Shows timestamp, stocks scanned, and stocks found
 
 ### Color Scheme (Tokyo Night)
 
@@ -247,6 +323,7 @@ config/history/
 | Success | `#9ece6a` |
 | Warning | `#e0af68` |
 | Danger | `#f7768e` |
+| Cyan | `#7dcfff` |
 
 ---
 
@@ -272,15 +349,26 @@ stockmap/
 │   │   └── history.go          # Scan history management
 │   ├── screener/
 │   │   ├── engine.go           # Core screening logic
-│   │   └── scoring.go          # Confluence score
+│   │   └── scoring.go          # Confluence score calculation
 │   ├── styles/
-│   │   └── styles.go           # Lipgloss styling
+│   │   └── styles.go           # Lipgloss styling (Tokyo Night)
 │   ├── ui/
 │   │   ├── app.go              # Main Bubble Tea model
-│   │   ├── views/              # Dashboard, Scanner, Details, History, Alerts, Filter
-│   │   └── components/         # Table, Header, StatusBar
+│   │   ├── views/
+│   │   │   ├── dashboard.go    # Main dashboard
+│   │   │   ├── scanner.go      # Scan progress view
+│   │   │   ├── details.go      # Stock details with chart
+│   │   │   ├── watchlist.go    # Watchlist management
+│   │   │   ├── history.go      # Scan history browser
+│   │   │   ├── alerts.go       # Price alerts view
+│   │   │   ├── filter.go       # Filter criteria editor
+│   │   │   └── help.go         # Help/legends view
+│   │   └── components/
+│   │       ├── table.go        # Responsive data table
+│   │       ├── header.go       # App header
+│   │       └── statusbar.go    # Status bar with keys
 │   └── watchlist/
-│       └── watchlist.go        # JSON CRUD
+│       └── watchlist.go        # JSON CRUD operations
 ├── config/
 │   ├── history/                # Saved scan results
 │   ├── alerts.json             # User alerts
@@ -319,6 +407,9 @@ Run the test suite to verify functionality:
 # Run all tests
 go test -v ./...
 
+# Run short tests
+go test -short ./...
+
 # Run screener tests specifically
 go test -v ./internal/screener/...
 ```
@@ -345,12 +436,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Disclaimer
 
-> **⚠️ This tool is for educational and informational purposes only.**
+> **This tool is for educational and informational purposes only.**
 >
 > It is not financial advice. The screening criteria and confluence scores are based on quantitative metrics and do not guarantee future performance. Always do your own research before making investment decisions.
 
 ---
 
 <p align="center">
-  Made with ❤️ using <a href="https://github.com/charmbracelet/bubbletea">Bubble Tea</a>
+  Made with Go using <a href="https://github.com/charmbracelet/bubbletea">Bubble Tea</a>
 </p>
