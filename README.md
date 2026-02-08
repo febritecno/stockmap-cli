@@ -84,8 +84,11 @@ go install github.com/febritecno/stockmap@latest
 git clone https://github.com/febritecno/stockmap.git
 cd stockmap
 
-# Build
-go build -o stockmap
+# Build using Make
+make build
+
+# Install using Make (installs to $GOPATH/bin)
+make install
 
 # Run
 ./stockmap
