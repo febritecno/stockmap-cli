@@ -86,9 +86,38 @@ var scanCmd = &cobra.Command{
 	},
 }
 
+// debugCmd runs connection diagnostics
+var debugCmd = &cobra.Command{
+	Use:   "debug",
+	Short: "Run connection diagnostics",
+	Long:  "Test connectivity to Yahoo Finance API and report any errors.",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("Running connection diagnostics...")
+		fmt.Println("--------------------------------")
+
+		client := fetcher.NewDirectYahooClient()
+		defer client.Close()
+
+		result := client.CheckConnection()
+
+		for _, detail := range result.Details {
+			fmt.Println(detail)
+		}
+
+		fmt.Println("--------------------------------")
+		if result.Connected {
+			fmt.Println("Result: SUCCESS - Connection verified")
+		} else {
+			fmt.Println("Result: FAILED - " + result.Error)
+			os.Exit(1)
+		}
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(scanCmd)
+	rootCmd.AddCommand(debugCmd)
 }
 
 // Execute runs the root command

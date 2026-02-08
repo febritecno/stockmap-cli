@@ -427,6 +427,31 @@ go test -v ./internal/screener/...
 
 ---
 
+## Troubleshooting
+
+### Termux (Android)
+
+If you encounter errors connecting to the Yahoo Finance API on Termux (e.g., certificate errors or "no such host"), try the following:
+
+1. **Run Connection Diagnostics**:
+   ```bash
+   stockmap debug
+   ```
+   This will test your connectivity and print detailed error messages.
+
+2. **Install CA Certificates**:
+   Termux might be missing root certificates.
+   ```bash
+   pkg install ca-certificates
+   ```
+
+3. **DNS Issues**:
+   If you see DNS resolution errors, try using the Go resolver:
+   ```bash
+   export GODEBUG=netdns=go
+   stockmap scan
+   ```
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
