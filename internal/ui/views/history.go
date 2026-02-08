@@ -6,9 +6,9 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"stockmap/internal/history"
-	"stockmap/internal/styles"
-	"stockmap/internal/ui/components"
+	"github.com/febritecno/stockmap/internal/history"
+	"github.com/febritecno/stockmap/internal/styles"
+	"github.com/febritecno/stockmap/internal/ui/components"
 )
 
 // HistoryView shows saved scan history

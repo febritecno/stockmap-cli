@@ -6,8 +6,8 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"stockmap/internal/fetcher"
-	"stockmap/internal/styles"
+	"github.com/febritecno/stockmap/internal/fetcher"
+	"github.com/febritecno/stockmap/internal/styles"
 )
 
 // ConnectionView shows connection test results

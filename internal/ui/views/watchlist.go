@@ -5,10 +5,10 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"stockmap/internal/fetcher"
-	"stockmap/internal/screener"
-	"stockmap/internal/styles"
-	"stockmap/internal/ui/components"
+	"github.com/febritecno/stockmap/internal/fetcher"
+	"github.com/febritecno/stockmap/internal/screener"
+	"github.com/febritecno/stockmap/internal/styles"
+	"github.com/febritecno/stockmap/internal/ui/components"
 )
 
 // WatchlistView shows only watchlist stocks

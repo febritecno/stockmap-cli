@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"stockmap/internal/styles"
+	"github.com/febritecno/stockmap/internal/styles"
 )
 
 // ScanMode represents the scan mode

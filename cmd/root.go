@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"stockmap/internal/ui"
+	"github.com/febritecno/stockmap/internal/ui"
 )
 
 var (

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"stockmap/internal/screener"
+	"github.com/febritecno/stockmap/internal/screener"
 )
 
 // ScanRecord represents a saved scan result

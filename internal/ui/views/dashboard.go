@@ -3,9 +3,9 @@ package views
 import (
 	"github.com/charmbracelet/lipgloss"
 
-	"stockmap/internal/screener"
-	"stockmap/internal/styles"
-	"stockmap/internal/ui/components"
+	"github.com/febritecno/stockmap/internal/screener"
+	"github.com/febritecno/stockmap/internal/styles"
+	"github.com/febritecno/stockmap/internal/ui/components"
 )
 
 // Dashboard is the main view showing the stock table

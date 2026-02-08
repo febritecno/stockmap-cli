@@ -6,7 +6,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"stockmap/internal/styles"
+	"github.com/febritecno/stockmap/internal/styles"
 )
 
 // Spinner frames for reload animation

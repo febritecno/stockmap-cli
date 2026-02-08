@@ -5,7 +5,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"stockmap/internal/styles"
+	"github.com/febritecno/stockmap/internal/styles"
 )
 
 // HelpView displays tutorial, legends, and keybindings information

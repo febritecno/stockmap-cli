@@ -7,8 +7,8 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"stockmap/internal/screener"
-	"stockmap/internal/styles"
+	"github.com/febritecno/stockmap/internal/screener"
+	"github.com/febritecno/stockmap/internal/styles"
 )
 
 // SortColumn represents which column to sort by

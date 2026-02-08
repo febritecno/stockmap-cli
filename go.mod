@@ -1,4 +1,4 @@
-module stockmap
+module github.com/febritecno/stockmap
 
 go 1.21
 

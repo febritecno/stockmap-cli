@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"stockmap/internal/fetcher"
+	"github.com/febritecno/stockmap/internal/fetcher"
 )
 
 // cleanup removes temporary config files created during tests

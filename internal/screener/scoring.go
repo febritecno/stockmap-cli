@@ -3,8 +3,8 @@ package screener
 import (
 	"math"
 
-	"stockmap/internal/analysis"
-	"stockmap/internal/fetcher"
+	"github.com/febritecno/stockmap/internal/analysis"
+	"github.com/febritecno/stockmap/internal/fetcher"
 )
 
 // ScreenResult represents a screened stock with all calculated metrics

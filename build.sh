@@ -28,7 +28,7 @@ do
 
     # Build the application
     echo "Building for $GOOS/$GOARCH..."
-    GOOS=$GOOS GOARCH=$GOARCH go build -ldflags="-X 'stockmap/cmd.version=$VERSION'" -o "release/$OUTPUT_NAME" main.go
+    GOOS=$GOOS GOARCH=$GOARCH go build -ldflags="-X 'github.com/febritecno/stockmap/cmd.version=$VERSION'" -o "release/$OUTPUT_NAME" main.go
 
     # Create a tarball
     tar -czf "release/stockmap_${GOOS}_${GOARCH}.tar.gz" -C release "$OUTPUT_NAME"
