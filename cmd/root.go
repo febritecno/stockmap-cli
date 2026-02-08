@@ -3,9 +3,12 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
+	"github.com/febritecno/stockmap-cli/internal/fetcher"
+	"github.com/febritecno/stockmap-cli/internal/screener"
 	"github.com/febritecno/stockmap-cli/internal/ui"
 )
 
@@ -51,12 +54,35 @@ var scanCmd = &cobra.Command{
 	Short: "Run a quick scan and print results",
 	Long:  "Run a stock scan and print results to stdout without launching the TUI.",
 	Run: func(cmd *cobra.Command, args []string) {
-		// For now, just launch the TUI
-		// In a future version, this could output JSON or table format
-		if err := ui.Run(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+		fmt.Println("Starting stock scan...")
+
+		symbols := fetcher.DefaultSymbols()
+		engine := screener.NewEngine(10)
+
+		// Set progress callback
+		engine.SetProgressCallback(func(completed, total int, current string) {
+			fmt.Fprintf(os.Stderr, "\rScanning %d/%d: %s        ", completed, total, current)
+		})
+
+		results := engine.Scan(symbols)
+		fmt.Fprintf(os.Stderr, "\nScan complete. Found %d results.\n\n", len(results))
+
+		// Print results in a table
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		fmt.Fprintln(w, "SYMBOL\tPRICE\tRSI\tPBV\tGRAHAM%\tSCORE\tGRADE")
+
+		for _, r := range results {
+			// Skip placeholders or errors if any
+			if r.HasError || r.Price == 0 {
+				continue
+			}
+
+			grade := screener.ScoreToGrade(r.ConfluenceScore)
+
+			fmt.Fprintf(w, "%s\t%.2f\t%.2f\t%.2f\t%.1f%%\t%.1f\t%s\n",
+				r.Symbol, r.Price, r.RSI, r.PBV, r.GrahamUpside, r.ConfluenceScore, grade)
 		}
+		w.Flush()
 	},
 }
 
