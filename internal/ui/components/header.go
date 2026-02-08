@@ -57,6 +57,13 @@ func (h *Header) View() string {
 	// Strategy
 	strategy := styles.InfoStyle.Render("Strategy: " + h.strategy)
 
+	// For narrow screens, use compact layout
+	if h.width < 70 {
+		// Compact single-line layout
+		compact := lipgloss.JoinHorizontal(lipgloss.Center, logo, "  ", version, "  ", marketStatus)
+		return styles.HeaderStyle.Width(h.width).Render(compact)
+	}
+
 	// Left side
 	left := lipgloss.JoinHorizontal(lipgloss.Center, logo, "  ", version)
 

@@ -119,7 +119,7 @@ func (h *HistoryView) View() string {
 	var b strings.Builder
 
 	// Header
-	title := styles.TitleStyle.Render("📁 SCAN HISTORY")
+	title := styles.TitleStyle.Render("SCAN HISTORY")
 	b.WriteString(centerText(title, h.width))
 	b.WriteString("\n")
 	b.WriteString(components.RenderDivider(h.width))
@@ -132,10 +132,6 @@ func (h *HistoryView) View() string {
 			b.WriteString("\n")
 		}
 
-		emptyIcon := styles.MutedStyle().Render("📭")
-		b.WriteString(centerText(emptyIcon, h.width))
-		b.WriteString("\n\n")
-
 		emptyText := styles.MutedStyle().Render("No scan history yet")
 		b.WriteString(centerText(emptyText, h.width))
 		b.WriteString("\n\n")
@@ -144,54 +140,8 @@ func (h *HistoryView) View() string {
 		b.WriteString(centerText(hint, h.width))
 		b.WriteString("\n")
 	} else {
-		// Table header
-		header := fmt.Sprintf("%-4s %-10s %-5s %-5s %-5s %-10s", "#", "DATE", "TIME", "SCAN", "FOUND", "AGE")
-		b.WriteString(styles.KeyStyle.Render(header))
-		b.WriteString("\n")
-		b.WriteString(components.RenderDivider(h.width))
-		b.WriteString("\n")
-
-		// Calculate visible rows
-		visibleRows := h.height - 12
-		if visibleRows < 5 {
-			visibleRows = 5
-		}
-
-		endIdx := h.offset + visibleRows
-		if endIdx > len(h.records) {
-			endIdx = len(h.records)
-		}
-
-		// Render rows
-		for i := h.offset; i < endIdx; i++ {
-			record := h.records[i]
-			selected := i == h.cursor
-
-			row := fmt.Sprintf("%-4d %-10s %-5s %-5d %-5d %-10s",
-				i+1,
-				record.Timestamp.Format("01-02"),
-				record.Timestamp.Format("15:04"),
-				record.TotalScanned,
-				record.TotalFound,
-				history.FormatTimestamp(record.Timestamp),
-			)
-
-			if selected {
-				row = styles.TableRowSelectedStyle.Render(row)
-			} else if record.TotalFound == 0 {
-				row = styles.MutedStyle().Render(row)
-			} else {
-				row = styles.TableRowStyle.Render(row)
-			}
-
-			b.WriteString(row)
-			b.WriteString("\n")
-		}
-
-		// Fill remaining space
-		for i := endIdx - h.offset; i < visibleRows; i++ {
-			b.WriteString("\n")
-		}
+		// Render table with lipgloss for proper alignment
+		b.WriteString(h.renderTable())
 	}
 
 	// Status bar
@@ -201,17 +151,178 @@ func (h *HistoryView) View() string {
 	return b.String()
 }
 
+// renderTable renders the history table with proper responsive columns
+func (h *HistoryView) renderTable() string {
+	var b strings.Builder
+
+	// Calculate available width
+	availWidth := h.width - 2
+	if availWidth < 60 {
+		availWidth = 60
+	}
+
+	// Define columns with min and preferred widths
+	type col struct {
+		title     string
+		minWidth  int
+		prefWidth int
+	}
+
+	// Different layouts based on width
+	var cols []col
+	if availWidth < 80 {
+		// Compact: #, DateTime, Scanned, Found
+		cols = []col{
+			{"#", 3, 4},
+			{"DATE/TIME", 14, 18},
+			{"SCAN", 6, 8},
+			{"FOUND", 6, 8},
+		}
+	} else {
+		// Full: #, Date, Time, Scanned, Found, Age
+		cols = []col{
+			{"#", 3, 5},
+			{"DATE", 10, 12},
+			{"TIME", 8, 10},
+			{"SCANNED", 8, 10},
+			{"FOUND", 6, 8},
+			{"AGE", 10, 16},
+		}
+	}
+
+	// Calculate total min width
+	totalMin := 0
+	for _, c := range cols {
+		totalMin += c.minWidth + 1 // +1 for spacing
+	}
+
+	// Determine actual widths
+	widths := make([]int, len(cols))
+	remaining := availWidth - totalMin
+	for i, c := range cols {
+		widths[i] = c.minWidth
+		if remaining > 0 {
+			extra := (c.prefWidth - c.minWidth)
+			if extra > remaining/(len(cols)-i) {
+				extra = remaining / (len(cols) - i)
+			}
+			if extra > 0 {
+				widths[i] += extra
+				remaining -= extra
+			}
+		}
+	}
+
+	// Render header
+	headerCells := make([]string, len(cols))
+	for i, c := range cols {
+		headerCells[i] = lipgloss.NewStyle().
+			Width(widths[i]).
+			Bold(true).
+			Foreground(styles.ColorPrimary).
+			Render(c.title)
+	}
+	b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, headerCells...))
+	b.WriteString("\n")
+
+	// Render separator
+	sepCells := make([]string, len(cols))
+	for i := range cols {
+		sepCells[i] = lipgloss.NewStyle().
+			Width(widths[i]).
+			Foreground(styles.ColorMuted).
+			Render(strings.Repeat("─", widths[i]))
+	}
+	b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, sepCells...))
+	b.WriteString("\n")
+
+	// Calculate visible rows
+	visibleRows := h.height - 12
+	if visibleRows < 5 {
+		visibleRows = 5
+	}
+
+	endIdx := h.offset + visibleRows
+	if endIdx > len(h.records) {
+		endIdx = len(h.records)
+	}
+
+	// Render rows
+	for i := h.offset; i < endIdx; i++ {
+		record := h.records[i]
+		selected := i == h.cursor
+
+		var rowCells []string
+
+		if availWidth < 80 {
+			// Compact format
+			rowCells = []string{
+				fmt.Sprintf("%d", i+1),
+				record.Timestamp.Format("01-02 15:04"),
+				fmt.Sprintf("%d", record.TotalScanned),
+				fmt.Sprintf("%d", record.TotalFound),
+			}
+		} else {
+			// Full format
+			rowCells = []string{
+				fmt.Sprintf("%d", i+1),
+				record.Timestamp.Format("2006-01-02"),
+				record.Timestamp.Format("15:04:05"),
+				fmt.Sprintf("%d", record.TotalScanned),
+				fmt.Sprintf("%d", record.TotalFound),
+				history.FormatTimestamp(record.Timestamp),
+			}
+		}
+
+		// Style each cell
+		styledCells := make([]string, len(rowCells))
+		for j, cell := range rowCells {
+			style := lipgloss.NewStyle().Width(widths[j])
+
+			if selected {
+				style = style.Bold(true).
+					Foreground(styles.ColorBackground).
+					Background(styles.ColorPrimary)
+			} else if record.TotalFound == 0 {
+				style = style.Foreground(styles.ColorMuted)
+			} else {
+				style = style.Foreground(styles.ColorText)
+			}
+
+			styledCells[j] = style.Render(cell)
+		}
+
+		b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, styledCells...))
+		b.WriteString("\n")
+	}
+
+	// Fill remaining space
+	for i := endIdx - h.offset; i < visibleRows; i++ {
+		b.WriteString("\n")
+	}
+
+	return b.String()
+}
+
 // renderStatusBar renders the status bar
 func (h *HistoryView) renderStatusBar() string {
 	divider := components.RenderDivider(h.width)
 
-	keys := styles.KeyStyle.Render("[Enter]") + styles.HelpStyle.Render(" Load  ") +
-		styles.KeyStyle.Render("[X]") + styles.HelpStyle.Render(" Delete  ") +
-		styles.KeyStyle.Render("[ESC]") + styles.HelpStyle.Render(" Back  ") +
-		styles.KeyStyle.Render("[Q]") + styles.HelpStyle.Render("uit")
+	var keys string
+	if h.width < 60 {
+		// Compact
+		keys = styles.KeyStyle.Render("[Enter]") + " " +
+			styles.KeyStyle.Render("[X]") + " " +
+			styles.KeyStyle.Render("[ESC]")
+	} else {
+		// Full
+		keys = styles.KeyStyle.Render("[Enter]") + styles.HelpStyle.Render(" Load  ") +
+			styles.KeyStyle.Render("[X]") + styles.HelpStyle.Render(" Delete  ") +
+			styles.KeyStyle.Render("[ESC]") + styles.HelpStyle.Render(" Back")
+	}
 
-	count := fmt.Sprintf("%d saved scans", len(h.records))
-	stats := styles.MutedStyle().Render(" │ ") + styles.StatusItemStyle.Render(count)
+	count := fmt.Sprintf("%d scans", len(h.records))
+	stats := styles.MutedStyle().Render(" | ") + styles.StatusItemStyle.Render(count)
 
 	return lipgloss.JoinVertical(lipgloss.Left, divider, keys+stats)
 }

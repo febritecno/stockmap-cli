@@ -32,7 +32,7 @@ func DefaultCategories() []Category {
 		{
 			Name: "Biotech",
 			Symbols: []string{
-				"REGN", "VRTX", "MRNA", "BIIB", "ILMN", "SGEN", "ALXN", "INCY",
+				"REGN", "VRTX", "MRNA", "BIIB", "ILMN", "INCY",
 			},
 		},
 		{

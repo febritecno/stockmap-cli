@@ -137,18 +137,38 @@ func (d *Details) renderDetailsView(s *screener.ScreenResult) string {
 	// Score section
 	scoreSection := d.renderScoreSection(s)
 
-	// Layout columns (3 columns now)
-	col1 := lipgloss.JoinVertical(lipgloss.Left, priceSection, technicalSection)
-	col2 := lipgloss.JoinVertical(lipgloss.Left, macdSection, bollingerSection)
-	col3 := lipgloss.JoinVertical(lipgloss.Left, valuationSection, riskSection)
+	// Responsive layout based on width
+	if d.width < 80 {
+		// Single column layout for narrow screens
+		b.WriteString(priceSection)
+		b.WriteString(technicalSection)
+		b.WriteString(valuationSection)
+		b.WriteString(riskSection)
+	} else if d.width < 120 {
+		// Two column layout for medium screens
+		col1 := lipgloss.JoinVertical(lipgloss.Left, priceSection, technicalSection, macdSection)
+		col2 := lipgloss.JoinVertical(lipgloss.Left, valuationSection, riskSection, bollingerSection)
 
-	colWidth := (d.width - 6) / 3
-	col1Styled := lipgloss.NewStyle().Width(colWidth).Render(col1)
-	col2Styled := lipgloss.NewStyle().Width(colWidth).Render(col2)
-	col3Styled := lipgloss.NewStyle().Width(colWidth).Render(col3)
+		colWidth := (d.width - 4) / 2
+		col1Styled := lipgloss.NewStyle().Width(colWidth).Render(col1)
+		col2Styled := lipgloss.NewStyle().Width(colWidth).Render(col2)
 
-	columns := lipgloss.JoinHorizontal(lipgloss.Top, col1Styled, " ", col2Styled, " ", col3Styled)
-	b.WriteString(columns)
+		columns := lipgloss.JoinHorizontal(lipgloss.Top, col1Styled, "  ", col2Styled)
+		b.WriteString(columns)
+	} else {
+		// Three column layout for wide screens
+		col1 := lipgloss.JoinVertical(lipgloss.Left, priceSection, technicalSection)
+		col2 := lipgloss.JoinVertical(lipgloss.Left, macdSection, bollingerSection)
+		col3 := lipgloss.JoinVertical(lipgloss.Left, valuationSection, riskSection)
+
+		colWidth := (d.width - 6) / 3
+		col1Styled := lipgloss.NewStyle().Width(colWidth).Render(col1)
+		col2Styled := lipgloss.NewStyle().Width(colWidth).Render(col2)
+		col3Styled := lipgloss.NewStyle().Width(colWidth).Render(col3)
+
+		columns := lipgloss.JoinHorizontal(lipgloss.Top, col1Styled, " ", col2Styled, " ", col3Styled)
+		b.WriteString(columns)
+	}
 	b.WriteString("\n\n")
 
 	// Score section (full width)

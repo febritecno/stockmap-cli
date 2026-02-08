@@ -267,15 +267,14 @@ func (w *WatchlistView) renderStatusBar() string {
 	divider := components.RenderDivider(w.width)
 
 	keys := styles.KeyStyle.Render("[A]") + styles.HelpStyle.Render("dd  ") +
-		styles.KeyStyle.Render("[H]") + styles.HelpStyle.Render("Category  ") +
-		styles.KeyStyle.Render("[R]") + styles.HelpStyle.Render("emove  ") +
+		styles.KeyStyle.Render("[H]") + styles.HelpStyle.Render("Cat  ") +
+		styles.KeyStyle.Render("[R]") + styles.HelpStyle.Render("em  ") +
 		styles.KeyStyle.Render("[D]") + styles.HelpStyle.Render("etails  ") +
-		styles.KeyStyle.Render("[ESC]") + styles.HelpStyle.Render(" Back  ") +
-		styles.KeyStyle.Render("[Q]") + styles.HelpStyle.Render("uit")
+		styles.KeyStyle.Render("[ESC]") + styles.HelpStyle.Render(" Back")
 
 	count := len(w.table.GetRows())
-	stats := styles.MutedStyle().Render("│ ") +
-		styles.StatusItemStyle.Render(intToStr(count)+" stocks pinned")
+	stats := styles.MutedStyle().Render(" | ") +
+		styles.StatusItemStyle.Render(intToStr(count)+" pinned")
 
 	return lipgloss.JoinVertical(lipgloss.Left, divider, keys+stats)
 }

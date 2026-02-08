@@ -23,11 +23,13 @@
 | Feature | Description |
 |---------|-------------|
 | **Real-time Data** | Fetches live stock data from Yahoo Finance API |
-| **Technical Analysis** | RSI, ATR, SMA/EMA indicators calculated natively |
+| **Technical Analysis** | RSI, ATR, SMA/EMA, MACD, Bollinger Bands indicators |
 | **Valuation Metrics** | P/B Ratio, P/E Ratio, Graham Number, Book Value |
 | **Risk Management** | Dynamic Stop-Loss/Take-Profit based on ATR volatility |
 | **Confluence Scoring** | Combined weighted score (Technical + Valuation + Risk) |
 | **Price Alerts** | Set alerts for Price, RSI, or % Change with visual notifications |
+| **Filter Controls** | Adjust RSI, PBV, and Score thresholds dynamically |
+| **Search & Sort** | Quick filter by symbol and sort by any column |
 | **Interactive TUI** | Navigate with arrow keys or vim-style bindings |
 | **Watchlist** | Pin favorite stocks with persistent JSON storage |
 | **154+ Stocks** | Default scan covers major US equities across all sectors |
@@ -115,14 +117,20 @@ stockmap scan
 | `W` | Toggle watchlist view |
 | `H` | View scan history |
 | `P` | View alerts dashboard |
+| `F` | Open filter criteria editor |
 | `D` / `Enter` | View stock details |
+| `I` | Show help/tutorial/legends |
 | `A` | Add to watchlist |
+| `X` | Clear all results |
 | `R` | Reload/Refresh data |
 | `T` | Toggle auto-reload (60s) |
 | `C` | Check connection status |
+| `/` | Quick search by symbol |
+| `Tab` | Cycle sort column |
+| `Shift+Tab` | Toggle sort direction |
 | `↑` / `k` | Move up |
 | `↓` / `j` | Move down |
-| `Esc` | Go back |
+| `Esc` | Go back / Clear search |
 | `Q` / `Ctrl+C` | Quit |
 
 ### Alerts View
@@ -136,6 +144,18 @@ stockmap scan
 | `C` | Clear all triggered alerts |
 | `Space` | Cycle alert type (in input mode) |
 | `Esc` | Back to dashboard |
+
+### Filter View
+
+| Key | Action |
+|-----|--------|
+| `↑` / `k` | Select previous field |
+| `↓` / `j` | Select next field |
+| `+` / `=` / `→` | Increase value |
+| `-` / `←` | Decrease value |
+| `Enter` | Edit value directly |
+| `R` | Reset to defaults |
+| `Esc` | Apply and go back |
 
 ### History View
 
@@ -240,12 +260,13 @@ stockmap/
 │   ├── alerts/
 │   │   └── alerts.go           # Price & RSI alert manager
 │   ├── analysis/
-│   │   ├── indicators.go       # RSI, ATR, SMA, EMA
+│   │   ├── indicators.go       # RSI, ATR, SMA, EMA, MACD, Bollinger
 │   │   ├── valuation.go        # PBV, Graham Number
 │   │   └── risk.go             # SL/TP calculations
 │   ├── fetcher/
 │   │   ├── yahoo.go            # Yahoo Finance client (library)
 │   │   ├── yahoo_direct.go     # Direct API client
+│   │   ├── symbols.go          # Categorized stock symbols
 │   │   └── pool.go             # Worker pool (10 concurrent)
 │   ├── history/
 │   │   └── history.go          # Scan history management
@@ -256,7 +277,7 @@ stockmap/
 │   │   └── styles.go           # Lipgloss styling
 │   ├── ui/
 │   │   ├── app.go              # Main Bubble Tea model
-│   │   ├── views/              # Dashboard, Scanner, Details, History, Alerts
+│   │   ├── views/              # Dashboard, Scanner, Details, History, Alerts, Filter
 │   │   └── components/         # Table, Header, StatusBar
 │   └── watchlist/
 │       └── watchlist.go        # JSON CRUD

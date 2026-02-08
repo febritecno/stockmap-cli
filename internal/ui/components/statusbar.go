@@ -78,27 +78,53 @@ func (s *StatusBar) SetMessage(msg string) {
 
 // View renders the status bar
 func (s *StatusBar) View() string {
-	// Key bindings - show T for auto-reload toggle
-	keys := []struct {
-		key  string
-		desc string
-	}{
-		{"S", "can"},
-		{"R", "eload"},
-		{"T", "imer"},
-		{"W", "atchlist"},
-		{"H", "istory"},
-		{"D", "etails"},
-		{"X", "Remove"},
-		{"Q", "uit"},
-	}
+	// Key bindings - responsive based on width
+	var keysLine string
 
-	keysLine := ""
-	for i, k := range keys {
-		if i > 0 {
-			keysLine += "  "
+	if s.width < 80 {
+		// Compact keys for narrow screens
+		keys := []struct {
+			key  string
+			desc string
+		}{
+			{"S", ""},
+			{"R", ""},
+			{"F", ""},
+			{"D", ""},
+			{"W", ""},
+			{"I", ""},
+			{"Q", ""},
 		}
-		keysLine += styles.KeyStyle.Render("["+k.key+"]") + styles.HelpStyle.Render(k.desc)
+
+		for i, k := range keys {
+			if i > 0 {
+				keysLine += " "
+			}
+			keysLine += styles.KeyStyle.Render("[" + k.key + "]")
+		}
+	} else {
+		// Full keys for wide screens
+		keys := []struct {
+			key  string
+			desc string
+		}{
+			{"S", "can"},
+			{"R", "eload"},
+			{"T", "imer"},
+			{"F", "ilter"},
+			{"D", "etails"},
+			{"W", "atch"},
+			{"H", "istory"},
+			{"I", "nfo"},
+			{"Q", "uit"},
+		}
+
+		for i, k := range keys {
+			if i > 0 {
+				keysLine += "  "
+			}
+			keysLine += styles.KeyStyle.Render("["+k.key+"]") + styles.HelpStyle.Render(k.desc)
+		}
 	}
 
 	// Divider

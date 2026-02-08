@@ -69,6 +69,11 @@ func (e *Engine) SetCriteria(c FilterCriteria) {
 	e.criteria = c
 }
 
+// GetCriteria returns the current filter criteria
+func (e *Engine) GetCriteria() FilterCriteria {
+	return e.criteria
+}
+
 // SetProgressCallback sets the progress callback
 func (e *Engine) SetProgressCallback(cb func(completed, total int, current string)) {
 	e.onProgress = cb

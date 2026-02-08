@@ -26,6 +26,8 @@ const (
 	ViewConnection
 	ViewScanMode
 	ViewAlerts
+	ViewFilter
+	ViewHelp
 )
 
 // Model is the main bubbletea model
@@ -42,6 +44,8 @@ type Model struct {
 	connectionView    *views.ConnectionView
 	scanModeView      *views.ScanModeView
 	alertsView        *views.AlertsView
+	filterView        *views.FilterView
+	helpView          *views.HelpView
 	engine            *screener.Engine
 	historyMgr        *history.Manager
 	alertsMgr         *alerts.Manager
@@ -60,6 +64,9 @@ type Model struct {
 	autoReloadCounter int  // Current countdown
 	// Triggered alerts
 	triggeredAlerts []alerts.TriggeredAlert
+	// Dashboard search mode
+	dashboardSearch bool
+	searchBuffer    string
 }
 
 // ScanProgressMsg is sent during scanning
@@ -129,6 +136,8 @@ func NewModel() *Model {
 		connectionView:    views.NewConnectionView(),
 		scanModeView:      views.NewScanModeView(),
 		alertsView:        views.NewAlertsView(alertsMgr),
+		filterView:        views.NewFilterView(),
+		helpView:          views.NewHelpView(),
 		engine:            screener.NewEngine(10), // 10 workers with rate limiting
 		historyMgr:        history.NewManager(),
 		alertsMgr:         alertsMgr,
@@ -190,6 +199,27 @@ func (m *Model) runConnectionTest() tea.Cmd {
 	}
 }
 
+// loadLastHistoryOrScan loads the last history if exists, otherwise starts scan
+func (m *Model) loadLastHistoryOrScan() tea.Cmd {
+	return func() tea.Msg {
+		// Try to load last history
+		record, err := m.historyMgr.GetLatest()
+		if err == nil && record != nil && len(record.Results) > 0 {
+			return HistoryLoadedMsg{Record: record}
+		}
+		// No history found, trigger auto-scan
+		return StartupScanMsg{}
+	}
+}
+
+// StartupScanMsg triggers the startup scan
+type StartupScanMsg struct{}
+
+// HistoryLoadedMsg is sent when history is loaded on startup
+type HistoryLoadedMsg struct {
+	Record *history.ScanRecord
+}
+
 // startScan starts the stock scanning process
 func (m *Model) startScan() tea.Cmd {
 	return tea.Batch(
@@ -202,11 +232,20 @@ func (m *Model) startScan() tea.Cmd {
 			if len(symbols) == 0 {
 				symbols = fetcher.DefaultSymbols()
 			}
-			// Only take first 50 symbols for "Scan All" to prevent rate limiting issues for now
-			// until we implement better batching/backoff
-			if m.scanSymbols == nil && len(symbols) > 50 {
-				symbols = symbols[:50]
+
+			// Always include watchlist symbols in scan
+			watchlistSymbols := m.engine.GetWatchlistManager().GetAll()
+			symbolSet := make(map[string]bool)
+			for _, s := range symbols {
+				symbolSet[s] = true
 			}
+			for _, s := range watchlistSymbols {
+				if !symbolSet[s] {
+					symbols = append(symbols, s)
+					symbolSet[s] = true
+				}
+			}
+
 			total := len(symbols)
 
 			// Set verbose progress callback
@@ -214,7 +253,7 @@ func (m *Model) startScan() tea.Cmd {
 				// Progress will be checked via tickScan
 			})
 
-			// Start scanning in goroutine
+			// Start scanning in goroutine - engine handles batching internally
 			go func() {
 				m.engine.Scan(symbols)
 			}()
@@ -265,6 +304,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.connectionView.SetSize(msg.Width, msg.Height)
 		m.scanModeView.SetSize(msg.Width, msg.Height)
 		m.alertsView.SetSize(msg.Width, msg.Height)
+		m.filterView.SetSize(msg.Width, msg.Height)
+		m.helpView.SetSize(msg.Width, msg.Height)
 		return m, nil
 
 	case tea.KeyMsg:
@@ -275,7 +316,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.splash.NextFrame()
 			if m.splash.IsDone() {
 				m.currentView = ViewDashboard
-				return m, m.checkMarketStatus
+				// Try to load last history, if none exists, auto-scan
+				return m, tea.Batch(m.checkMarketStatus, m.loadLastHistoryOrScan())
 			}
 			return m, m.splashTick()
 		}
@@ -419,6 +461,26 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ConnectionResultMsg:
 		m.connectionView.SetResult(msg.Result)
 		return m, nil
+
+	case StartupScanMsg:
+		// Auto-scan on startup when no history
+		m.scanSymbols = nil
+		m.isReload = false
+		m.scanning = true
+		m.currentView = ViewScanner
+		m.dashboard.SetMessage("No history found, starting scan...")
+		return m, m.startScan()
+
+	case HistoryLoadedMsg:
+		// Load history on startup
+		m.results = msg.Record.Results
+		m.totalScanned = msg.Record.TotalScanned
+		m.dashboard.SetResults(m.results)
+		m.watchlist.SetResults(m.results)
+		m.loadedFromHistory = true
+		m.loadedHistoryID = msg.Record.ID
+		m.dashboard.SetMessage("Loaded: " + history.FormatTimestamp(msg.Record.Timestamp))
+		return m, nil
 	}
 
 	return m, nil
@@ -486,6 +548,10 @@ func (m *Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleScanModeKeys(msg)
 	case ViewAlerts:
 		return m.handleAlertsKeys(msg)
+	case ViewFilter:
+		return m.handleFilterKeys(msg)
+	case ViewHelp:
+		return m.handleHelpKeys(msg)
 	}
 
 	return m, nil
@@ -493,7 +559,71 @@ func (m *Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // handleDashboardKeys handles dashboard-specific keys
 func (m *Model) handleDashboardKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Handle search input mode
+	if m.dashboardSearch {
+		switch msg.String() {
+		case "esc":
+			m.dashboardSearch = false
+			m.searchBuffer = ""
+			m.dashboard.GetTable().ClearSearch()
+			m.dashboard.SetMessage("")
+			return m, nil
+		case "enter":
+			m.dashboardSearch = false
+			if m.searchBuffer == "" {
+				m.dashboard.GetTable().ClearSearch()
+				m.dashboard.SetMessage("")
+			} else {
+				m.dashboard.SetMessage("Filtered by: " + m.searchBuffer)
+			}
+			return m, nil
+		case "backspace":
+			if len(m.searchBuffer) > 0 {
+				m.searchBuffer = m.searchBuffer[:len(m.searchBuffer)-1]
+				m.dashboard.GetTable().SetSearch(m.searchBuffer)
+				m.dashboard.SetMessage("Search: " + m.searchBuffer + "_")
+			}
+			return m, nil
+		default:
+			if len(msg.String()) == 1 {
+				m.searchBuffer += msg.String()
+				m.dashboard.GetTable().SetSearch(m.searchBuffer)
+				m.dashboard.SetMessage("Search: " + m.searchBuffer + "_")
+			}
+			return m, nil
+		}
+	}
+
 	switch msg.String() {
+	case "/":
+		// Start search mode
+		m.dashboardSearch = true
+		m.searchBuffer = ""
+		m.dashboard.SetMessage("Search: _")
+		return m, nil
+
+	case "tab":
+		// Cycle sort column
+		m.dashboard.GetTable().CycleSort()
+		sortCol, asc := m.dashboard.GetTable().GetSortInfo()
+		dir := "desc"
+		if asc {
+			dir = "asc"
+		}
+		m.dashboard.SetMessage("Sort by " + sortCol + " (" + dir + ")")
+		return m, nil
+
+	case "shift+tab":
+		// Toggle sort direction
+		m.dashboard.GetTable().ToggleSortDirection()
+		sortCol, asc := m.dashboard.GetTable().GetSortInfo()
+		dir := "desc"
+		if asc {
+			dir = "asc"
+		}
+		m.dashboard.SetMessage("Sort by " + sortCol + " (" + dir + ")")
+		return m, nil
+
 	case "s", "S":
 		// Show scan mode selection
 		m.scanModeView.Reset()
@@ -517,6 +647,11 @@ func (m *Model) handleDashboardKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Switch to history view
 		m.currentView = ViewHistory
 		m.historyView.Refresh()
+		return m, nil
+
+	case "i", "I":
+		// Show help/tutorial/legends
+		m.currentView = ViewHelp
 		return m, nil
 
 	case "d", "D", "enter":
@@ -604,6 +739,12 @@ func (m *Model) handleDashboardKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.currentView = ViewAlerts
 		return m, nil
 
+	case "f", "F":
+		// Switch to filter view
+		m.filterView.SetCriteria(m.engine.GetCriteria())
+		m.currentView = ViewFilter
+		return m, nil
+
 	case "up", "k":
 		m.dashboard.MoveUp()
 		return m, nil
@@ -612,19 +753,16 @@ func (m *Model) handleDashboardKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.dashboard.MoveDown()
 		return m, nil
 
-	case "x", "X", "backspace":
-		// Remove selected stock from results
-		if selected := m.dashboard.SelectedResult(); selected != nil {
-			// Filter out the selected symbol
-			newResults := make([]*screener.ScreenResult, 0, len(m.results)-1)
-			for _, r := range m.results {
-				if r.Symbol != selected.Symbol {
-					newResults = append(newResults, r)
-				}
-			}
-			m.results = newResults
+	case "x", "X":
+		// Clear all results
+		if len(m.results) > 0 {
+			m.results = nil
 			m.dashboard.SetResults(m.results)
-			m.dashboard.SetMessage("Removed " + selected.Symbol)
+			m.watchlist.SetResults(m.results)
+			m.totalScanned = 0
+			m.loadedFromHistory = false
+			m.loadedHistoryID = ""
+			m.dashboard.SetMessage("Cleared all results")
 		}
 		return m, nil
 	}
@@ -1038,6 +1176,81 @@ func (m *Model) handleAlertsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// handleFilterKeys handles filter view keys
+func (m *Model) handleFilterKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Handle input mode
+	if m.filterView.IsInputActive() {
+		switch msg.String() {
+		case "esc":
+			m.filterView.ClearInput()
+			return m, nil
+		case "enter":
+			if m.filterView.SubmitInput() {
+				// Apply criteria to engine
+				m.engine.SetCriteria(m.filterView.GetCriteria())
+			}
+			return m, nil
+		case "backspace":
+			m.filterView.Backspace()
+			return m, nil
+		default:
+			if len(msg.String()) == 1 {
+				m.filterView.AddChar(rune(msg.String()[0]))
+			}
+			return m, nil
+		}
+	}
+
+	switch msg.String() {
+	case "up", "k":
+		m.filterView.MoveUp()
+		return m, nil
+
+	case "down", "j":
+		m.filterView.MoveDown()
+		return m, nil
+
+	case "enter":
+		// Start editing current field
+		m.filterView.ToggleInput()
+		return m, nil
+
+	case "-", "left", "h":
+		// Decrease value
+		m.filterView.Decrement()
+		return m, nil
+
+	case "+", "=", "right", "l":
+		// Increase value
+		m.filterView.Increment()
+		return m, nil
+
+	case "r", "R":
+		// Reset to defaults
+		m.filterView.Reset()
+		return m, nil
+
+	case "esc":
+		// Apply criteria and go back
+		m.engine.SetCriteria(m.filterView.GetCriteria())
+		m.dashboard.SetMessage("Filter criteria updated")
+		m.currentView = ViewDashboard
+		return m, nil
+	}
+
+	return m, nil
+}
+
+// handleHelpKeys handles help view keys
+func (m *Model) handleHelpKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "i", "I", "q", "Q":
+		m.currentView = ViewDashboard
+		return m, nil
+	}
+	return m, nil
+}
+
 // findStock finds a stock by symbol in results
 func (m *Model) findStock(symbol string) *screener.ScreenResult {
 	for _, r := range m.results {
@@ -1067,6 +1280,10 @@ func (m *Model) View() string {
 		return m.scanModeView.View()
 	case ViewAlerts:
 		return m.alertsView.View()
+	case ViewFilter:
+		return m.filterView.View()
+	case ViewHelp:
+		return m.helpView.View()
 	default:
 		return m.dashboard.View()
 	}
