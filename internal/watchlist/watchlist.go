@@ -56,7 +56,6 @@ func (m *Manager) Load() error {
 			// Initialize with defaults
 			m.symbols = map[string]bool{
 				"SLV": true,
-				"WDC": true,
 				"GDX": true,
 			}
 			return m.saveUnsafe()

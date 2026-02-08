@@ -294,7 +294,7 @@ Default watchlist stored in `config/watchlist.json`:
 
 ```json
 {
-  "symbols": ["SLV", "WDC", "GDX"]
+  "symbols": ["SLV", "GDX"]
 }
 ```
 
